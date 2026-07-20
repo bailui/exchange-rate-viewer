@@ -221,7 +221,22 @@ async function loadSpark(){try{const d=await fetchHistory(7);HOT_CURRENCIES.forE
 
 async function refreshRates(){
   refreshing.value=true;emit('refreshStart')
-  try{const d=await fetchLiveRates();Object.assign(rawRates,d.rates||{});convCnyRates.value=d.rates||{};loading.value=false;lastTime.value=new Date().toLocaleTimeString('zh-CN',{hour12:false});emit('updateTime',lastTime.value)}catch{}
+  try{
+    const d=await fetchLiveRates()
+    if (d?.rates && Object.keys(d.rates).length > 0) {
+      // 只清理旧数据保留新数据，不用 Object.assign 清除
+      for (const key of Object.keys(rawRates)) {
+        if (!(key in d.rates)) delete rawRates[key]
+      }
+      for (const [key, val] of Object.entries(d.rates)) {
+        rawRates[key] = val
+      }
+      convCnyRates.value = d.rates
+      lastTime.value = new Date().toLocaleTimeString('zh-CN',{hour12:false})
+      emit('updateTime',lastTime.value)
+    }
+    loading.value=false
+  }catch{}
   finally{refreshing.value=false;emit('refreshEnd')}
 }
 
