@@ -30,33 +30,37 @@
         <span class="text-[10px] font-semibold text-white bg-[var(--color-primary)] px-2 py-0.5 rounded-full">实时</span>
       </div>
 
-      <div class="flex flex-col sm:flex-row items-stretch sm:items-end gap-2 mb-3">
+      <!-- 换算行 -->
+      <div class="flex flex-col sm:flex-row items-stretch gap-3 mb-4">
+        <!-- 左侧：持有 -->
         <div class="flex-1">
-          <label class="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5 block">持有金额</label>
-          <div class="input-box">
-            <input v-model.number="convAmount" type="number" min="0" class="flex-1 bg-transparent outline-none text-lg font-bold text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]" placeholder="0" />
-            <span class="text-sm font-bold text-[var(--color-primary)] ml-2 flex-shrink-0">{{ convFrom }}</span>
+          <label class="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5 block">持有</label>
+          <div class="flex items-stretch gap-2">
+            <select v-model="convFrom" class="curr-sel w-[140px] flex-shrink-0">
+              <option v-for="c in allCurrenciesFull" :key="'f-'+c.code" :value="c.code">{{ c.flag }} {{ c.code }} {{ c.name }}</option>
+            </select>
+            <input v-model.number="convAmount" type="number" min="0" class="flex-1 min-w-0 bg-[var(--color-bg-soft)] border border-[var(--color-border)] rounded-xl px-3 text-lg font-bold text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-light)] transition-all" placeholder="0" />
           </div>
         </div>
-        <button @click="swapConv" class="swap-btn">⇄</button>
+
+        <!-- 交换按钮 -->
+        <button @click="swapConv" class="swap-btn-v self-end">⇄</button>
+
+        <!-- 右侧：结果 -->
         <div class="flex-1">
-          <label class="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5 block">兑换结果</label>
-          <div class="input-box bg-[var(--color-primary-light)] border-[var(--color-primary-light)]">
-            <span class="text-lg font-extrabold text-[var(--color-primary)] flex-1">{{ convResult }}</span>
-            <span class="text-sm font-bold text-[var(--color-success)] ml-2 flex-shrink-0">{{ convTo }}</span>
+          <label class="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5 block">兑换为</label>
+          <div class="flex items-stretch gap-2">
+            <select v-model="convTo" class="curr-sel w-[140px] flex-shrink-0">
+              <option v-for="c in allCurrenciesFull" :key="'t-'+c.code" :value="c.code">{{ c.flag }} {{ c.code }} {{ c.name }}</option>
+            </select>
+            <div class="flex-1 flex items-center bg-[var(--color-primary-light)] border border-[var(--color-primary-light)] rounded-xl px-3 min-w-0">
+              <span class="text-lg font-extrabold text-[var(--color-primary)] truncate">{{ convResult }}</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="flex flex-wrap gap-1.5 mb-2">
-        <span class="text-[10px] text-[var(--color-text-muted)] self-center mr-1">从</span>
-        <button v-for="c in hotChips" :key="'f-'+c.code" :class="['chip', convFrom===c.code && 'chip-on']" @click="convFrom=c.code">{{ c.flag }} {{ c.code }}</button>
-      </div>
-      <div class="flex flex-wrap gap-1.5">
-        <span class="text-[10px] text-[var(--color-text-muted)] self-center mr-1">到</span>
-        <button v-for="c in hotChips" :key="'t-'+c.code" :class="['chip', convTo===c.code && 'chip-on']" @click="convTo=c.code">{{ c.flag }} {{ c.code }}</button>
-      </div>
-      <div v-if="convRateInfo" class="mt-3 text-center text-xs text-[var(--color-text-soft)] bg-[var(--color-bg-soft)] py-2 rounded-xl">
+      <div v-if="convRateInfo" class="text-center text-xs text-[var(--color-text-soft)] bg-[var(--color-bg-soft)] py-2 rounded-xl">
         1 <b class="text-[var(--color-text)]">{{ convFrom }}</b> = <b class="text-[var(--color-primary)]">{{ convRateInfo }}</b> {{ convTo }}
       </div>
     </div>
@@ -157,6 +161,9 @@ function swapConv(){[convFrom.value,convTo.value]=[convTo.value,convFrom.value]}
 
 const hotChips = computed(() => HOT_CURRENCIES.map(code => ({ code, flag: CURRENCY_META[code]?.flag || '💱' })))
 
+// 全部币种（含热门），用于换算器的下拉选择
+const allCurrenciesFull = computed(() => buildCurrencyList(rawRates))
+
 // 汇率数据
 const hotCurrencies=computed(()=>buildCurrencyList(rawRates).filter(c=>HOT_CURRENCIES.includes(c.code)))
 const allCurrencies=computed(()=>buildCurrencyList(rawRates).filter(c=>c.code!=='CNY'&&!HOT_CURRENCIES.includes(c.code)))
@@ -216,6 +223,8 @@ onUnmounted(()=>clearInterval(timer))
 .swap-btn { @apply w-9 h-9 rounded-full border-2 border-[var(--color-border)] bg-white flex items-center justify-center text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white hover:border-[var(--color-primary)] transition-all duration-200 flex-shrink-0 self-center; margin-bottom:2px; }
 .chip { @apply inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-[var(--color-border)] bg-white text-[11px] font-medium text-[var(--color-text-soft)] transition-all duration-150 cursor-pointer hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]; }
 .chip-on { @apply bg-[var(--color-primary)] text-white border-[var(--color-primary)] font-semibold; }
+.curr-sel { @apply h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-soft)] px-2 text-xs font-semibold text-[var(--color-text)] cursor-pointer outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-light)] transition-all; appearance:none; background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23A08C95' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\"); background-repeat:no-repeat; background-position:right 8px center; padding-right:24px; }
+.swap-btn-v { @apply w-9 h-9 rounded-full border-2 border-[var(--color-border)] bg-white flex items-center justify-center text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white hover:border-[var(--color-primary)] transition-all duration-200 flex-shrink-0; }
 .rate-card { @apply bg-white rounded-[var(--radius-card)] p-4 border border-[var(--color-border)]; box-shadow: var(--shadow-card); transition: all 0.2s; animation: fadeUp 0.4s cubic-bezier(.25,.1,.25,1) both; }
 .rate-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
 @keyframes fadeUp { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
