@@ -5,7 +5,7 @@
     <!-- 极简顶栏 -->
     <header class="topbar">
       <div class="tb-left">
-        <span class="logo">🦌 鹿乐汇</span>
+        <span class="logo">白鹿io汇率转换</span>
       </div>
       <div class="tb-right">
         <span class="status" v-if="justUpdated">✅ 已刷新</span>

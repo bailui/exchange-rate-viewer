@@ -1,20 +1,18 @@
-/* === 🌌 鹿乐汇 · Dark Aurora Premium === */
+/* === 🌌 白鹿io汇率转换 · Dark Premium === */
 :root {
-  --bg-deep:   #08080f;
-  --bg-surface:#111118;
-  --bg-card:   rgba(255,255,255,.03);
-  --border-subtle: rgba(255,255,255,.06);
-  --border-card:   rgba(255,255,255,.08);
+  --bg-deep:    #08080f;
+  --bg-surface: #111118;
+  --bg-input:   #1a1a26;
+  --bg-card:    rgba(255,255,255,.04);
+  --border-subtle: rgba(255,255,255,.07);
+  --border-input:  rgba(255,255,255,.12);
 
   --text-primary:   #f0f0f5;
-  --text-secondary: #8888a0;
-  --text-muted:     #555568;
+  --text-secondary: #9090a8;
+  --text-muted:     #5a5a72;
 
-  --radius-sm: 12px;
-  --radius-md: 18px;
-  --radius-lg: 24px;
-  --radius-xl: 32px;
-
+  --accent: #818cf8;
+  --radius-sm: 12px; --radius-md: 18px; --radius-lg: 24px;
   --ease-out: cubic-bezier(.16,1,.3,1);
   --spring:   cubic-bezier(.34,1.56,.64,1);
 }
@@ -24,8 +22,7 @@
 html, body {
   height:100%; overflow-x:hidden;
   font-family: -apple-system,'Inter','SF Pro Display','PingFang SC','Microsoft YaHei',sans-serif;
-  background: var(--bg-deep);
-  color: var(--text-primary);
+  background: var(--bg-deep); color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -34,49 +31,56 @@ html, body {
 ::-webkit-scrollbar { width:3px }
 ::-webkit-scrollbar-thumb { background:rgba(255,255,255,.1); border-radius:2px }
 
+/* === 全局输入框样式 === */
+input, select {
+  background: var(--bg-input) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-input) !important;
+  border-radius: var(--radius-sm) !important;
+  font-family: inherit;
+  transition: border-color .2s;
+}
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(129,140,248,.15) !important;
+}
+input::placeholder { color: var(--text-muted) !important }
+
 /* === 玻璃卡片 === */
 .glass {
   background: var(--bg-card);
   backdrop-filter: blur(40px) saturate(180%);
   -webkit-backdrop-filter: blur(40px) saturate(180%);
-  border: 1px solid var(--border-card);
+  border: 1px solid var(--border-subtle);
 }
 
 /* === Aurora 动画 === */
 @keyframes aurora {
-  0%   { transform:translate(0,0) rotate(0deg) scale(1) }
-  25%  { transform:translate(30px,-30px) rotate(90deg) scale(1.1) }
-  50%  { transform:translate(-20px,20px) rotate(180deg) scale(.95) }
-  75%  { transform:translate(-30px,-10px) rotate(270deg) scale(1.05) }
+  0% { transform:translate(0,0) rotate(0deg) scale(1) }
+  25% { transform:translate(40px,-40px) rotate(90deg) scale(1.1) }
+  50% { transform:translate(-30px,30px) rotate(180deg) scale(.9) }
+  75% { transform:translate(-40px,-20px) rotate(270deg) scale(1.05) }
   100% { transform:translate(0,0) rotate(360deg) scale(1) }
 }
-
 @keyframes fadeUp {
-  from { opacity:0; transform:translateY(24px) }
-  to   { opacity:1; transform:translateY(0) }
+  from { opacity:0; transform:translateY(20px) }
+  to { opacity:1; transform:translateY(0) }
 }
-
 @keyframes scaleIn {
   from { opacity:0; transform:scale(.92) }
-  to   { opacity:1; transform:scale(1) }
+  to { opacity:1; transform:scale(1) }
 }
-
 @keyframes shimmer {
   0% { background-position:200% 0 }
   100% { background-position:-200% 0 }
 }
-
 @keyframes countIn {
-  from { opacity:0; filter:blur(4px); transform:translateY(8px) }
-  to   { opacity:1; filter:blur(0); transform:translateY(0) }
+  from { opacity:0; filter:blur(4px); transform:translateY(6px) }
+  to { opacity:1; filter:blur(0); transform:translateY(0) }
 }
 
-.stagger-1 { animation: fadeUp .6s var(--ease-out) .05s both }
-.stagger-2 { animation: fadeUp .6s var(--ease-out) .1s both }
-.stagger-3 { animation: fadeUp .6s var(--ease-out) .15s both }
-.stagger-4 { animation: fadeUp .6s var(--ease-out) .2s both }
-
-/* === Element Plus 暗色覆盖 === */
+/* === Element Plus === */
 .el-button {
   border-radius:100px !important; font-weight:600 !important;
   transition:all .3s var(--spring) !important;
@@ -86,9 +90,5 @@ html, body {
   border:none !important; color:#fff !important;
   box-shadow:0 4px 20px rgba(99,102,241,.4) !important;
 }
-.el-button--primary:hover {
-  transform:translateY(-2px);
-  box-shadow:0 8px 30px rgba(99,102,241,.5) !important;
-}
+.el-button--primary:hover { transform:translateY(-2px); box-shadow:0 8px 30px rgba(99,102,241,.5) !important }
 .el-button:active { transform:scale(.96) !important }
-.el-menu { border-right:none !important }
