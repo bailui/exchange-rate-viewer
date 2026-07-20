@@ -1,48 +1,47 @@
-/* === 🍎 Apple 风格设计系统 === */
+/* === 🌸 粉色 Apple 风格设计系统 === */
 :root {
-  /* 主色调 — 柔和多彩 */
-  --color-red:     #ff3b6e;
-  --color-orange:  #ff9f0a;
-  --color-yellow:  #ffd60a;
-  --color-green:   #30d158;
-  --color-mint:    #66d4cf;
-  --color-teal:    #40c8e0;
-  --color-blue:    #007aff;
-  --color-indigo:  #5856d6;
-  --color-purple:  #af52de;
-  --color-pink:    #ff2d78;
+  --p-50:  #fff0f5;
+  --p-100: #ffe0eb;
+  --p-200: #ffc2d6;
+  --p-300: #ff9eb5;
+  --p-400: #ff7a9e;
+  --p-500: #ff5c8a;
+  --p-600: #e84a78;
+  --p-700: #d13866;
+  --p-800: #b82b55;
+  --p-900: #9a1f44;
 
-  /* 背景 */
-  --bg-primary:    #f2f2f7;
+  --rose-50:  #fff1f2;
+  --rose-100: #ffe4e6;
+  --rose-200: #fecdd3;
+  --rose-300: #fda4af;
+  --rose-400: #fb7185;
+  --rose-500: #f43f5e;
+
+  --bg-primary:    #fdf2f5;
   --bg-secondary:  #ffffff;
-  --bg-sidebar:    #1d1d1f;
+  --bg-sidebar:    #27141a;
   --bg-surface:    rgba(255,255,255,.72);
 
-  /* 文字 */
-  --text-primary:   #1d1d1f;
-  --text-secondary: #86868b;
-  --text-tertiary:  #aeaeb2;
-  --text-inverse:   #f5f5f7;
+  --text-primary:   #2d1822;
+  --text-secondary: #8c6b78;
+  --text-tertiary:  #b89aa6;
+  --text-inverse:   #fdf2f5;
 
   /* 毛玻璃 */
-  --glass-bg:       rgba(255,255,255,.55);
-  --glass-border:   rgba(255,255,255,.6);
-  --glass-shadow:   0 8px 32px rgba(0,0,0,.04), 0 2px 4px rgba(0,0,0,.02), 0 0 0 1px rgba(0,0,0,.04);
+  --glass-bg:       rgba(255,255,255,.58);
+  --glass-border:   rgba(255,240,245,.6);
+  --glass-shadow:   0 8px 32px rgba(255,92,138,.06), 0 2px 4px rgba(0,0,0,.02), 0 0 0 1px rgba(255,92,138,.08);
   --glass-blur:     20px;
 
-  /* 圆角 */
   --radius-xs:  8px;
   --radius-sm:  12px;
   --radius-md:  16px;
   --radius-lg:  20px;
   --radius-xl:  24px;
-  --radius-2xl: 28px;
 
-  /* 动画 */
   --ease-out:   cubic-bezier(.25,.1,.25,1);
   --ease-spring: cubic-bezier(.34,1.56,.64,1);
-  --transition-fast: .2s var(--ease-out);
-  --transition-smooth: .4s var(--ease-out);
 }
 
 * { margin:0; padding:0; box-sizing:border-box }
@@ -51,69 +50,47 @@ html, body {
   height: 100%;
   font-family: -apple-system, 'Inter', 'SF Pro Display', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   color: var(--text-primary);
   background: var(--bg-primary);
-  font-feature-settings: 'cv02','cv03','cv04','cv11';
 }
 
 #app { height: 100% }
 
-/* === 背景装饰 — 让毛玻璃可见 === */
-.main-area {
-  position: relative;
-}
-.main-area::before {
-  content: '';
-  position: fixed;
-  top: -200px; right: -150px;
-  width: 500px; height: 500px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(0,122,255,.08) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-}
-.main-area::after {
-  content: '';
-  position: fixed;
-  bottom: -100px; left: -100px;
-  width: 400px; height: 400px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(175,82,222,.06) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* 滚动条 */
 ::-webkit-scrollbar { width: 4px }
 ::-webkit-scrollbar-track { background: transparent }
-::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15); border-radius: 2px }
-::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,.25) }
+::-webkit-scrollbar-thumb { background: var(--p-200); border-radius: 2px }
 
-/* Element Plus Apple 化 */
+/* Element Plus 粉色化 */
+:root {
+  --el-color-primary: var(--p-500);
+  --el-color-primary-light-3: var(--p-300);
+  --el-color-primary-light-5: var(--p-200);
+}
+
 .el-button {
   border-radius: 100px !important;
   font-weight: 590 !important;
   letter-spacing: -.01em;
-  transition: all var(--transition-fast) !important;
+  transition: all .2s var(--ease-out) !important;
 }
 .el-button--primary {
-  --el-button-bg-color: var(--color-blue);
-  --el-button-border-color: var(--color-blue);
-  --el-button-hover-bg-color: #0070e9;
+  --el-button-bg-color: var(--p-500);
+  --el-button-border-color: var(--p-500);
+  --el-button-hover-bg-color: var(--p-400);
+  box-shadow: 0 4px 14px rgba(255,92,138,.3);
 }
+.el-button--primary:hover { box-shadow: 0 6px 20px rgba(255,92,138,.4); transform: translateY(-1px) }
 .el-button:active { transform: scale(.97) }
 
 .el-menu { border-right: none !important }
 .el-menu-item {
-  border-radius: 8px !important;
+  border-radius: 10px !important;
   margin: 2px 8px !important;
   width: auto !important;
-  transition: all var(--transition-fast);
 }
 .el-tag { border-radius: 100px !important; font-weight: 500 }
 
-/* === 毛玻璃工具类 === */
+/* 毛玻璃工具 */
 .glass {
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur)) saturate(180%);
@@ -121,18 +98,13 @@ html, body {
   border: 1px solid var(--glass-border);
 }
 
-/* === 入场动画 === */
+/* 动画 */
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(20px) }
+  from { opacity: 0; transform: translateY(16px) }
   to   { opacity: 1; transform: translateY(0) }
 }
-@keyframes fadeIn {
-  from { opacity: 0 }
-  to   { opacity: 1 }
-}
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(.95) }
+  from { opacity: 0; transform: scale(.96) }
   to   { opacity: 1; transform: scale(1) }
 }
-.anim-fade-up  { animation: fadeUp  .5s var(--ease-out) both }
-.anim-scale-in { animation: scaleIn .4s var(--ease-spring) both }
+.anim-up { animation: fadeUp .45s var(--ease-out) both }
