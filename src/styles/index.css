@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #fffaf5;
+  --color-pink-50: #fff5f7;
+  --color-pink-100: #ffe8ef;
+  --color-pink-200: #ffd0de;
+  --color-pink-300: #ffb3c8;
+  --color-pink-400: #ff85a2;
+  --color-pink-500: #ff6b8a;
+  --color-pink-600: #e85d7a;
+  --color-rose-gold: #c98b7a;
+  --color-lavender: #f3efff;
+  --color-mint: #effaf5;
+  --color-text: #2d1822;
+  --color-text-soft: #8c6b78;
+  --color-text-muted: #c4a8b4;
+  --color-border: #f0d5de;
+  --color-card: #ffffff;
+  --color-bg: #fef9f8;
+  --radius-card: 20px;
+  --radius-btn: 100px;
+  --radius-input: 14px;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: -apple-system, 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: var(--color-pink-300); border-radius: 2px; }

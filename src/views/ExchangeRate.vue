@@ -1,98 +1,119 @@
 <template>
-  <div class="page">
-    <!-- 统计概览 -->
-    <div class="stat-row">
-      <div class="stat-card">
-        <div class="sc-left">
-          <div class="sc-val">{{ currencyCount }}</div>
-          <div class="sc-label">支持币种</div>
-        </div>
-        <div class="sc-icon" style="background:#e8f2ff;color:#4a8cf7">🌐</div>
-      </div>
-      <div class="stat-card">
-        <div class="sc-left">
-          <div class="sc-val">{{ hotCount }}</div>
-          <div class="sc-label">热门汇率</div>
-        </div>
-        <div class="sc-icon" style="background:#fef3c7;color:#f59e0b">🔥</div>
-      </div>
-      <div class="stat-card">
-        <div class="sc-left">
-          <div class="sc-val">30s</div>
-          <div class="sc-label">刷新频率</div>
-        </div>
-        <div class="sc-icon" style="background:#dcfce7;color:#22c55e">⚡</div>
-      </div>
-      <div class="stat-card">
-        <div class="sc-left">
-          <div class="sc-val">{{ lastTime || '--' }}</div>
-          <div class="sc-label">最后更新</div>
-        </div>
-        <div class="sc-icon" style="background:#f3e8ff;color:#a855f7">🕐</div>
-      </div>
+  <div class="max-w-6xl mx-auto">
+    <!-- 欢迎语 -->
+    <div class="mb-6">
+      <h1 class="text-xl font-extrabold text-[var(--color-text)] tracking-tight">实时汇率</h1>
+      <p class="text-sm text-[var(--color-text-soft)] mt-1">今天也要关注全球汇率变化呀 💕</p>
     </div>
 
-    <!-- 每日一句 + 计算器 -->
-    <div class="top-row">
-      <div class="encourage">
-        <span class="enc-emoji">{{ msg.emoji }}</span>
+    <!-- 统计卡片 -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+      <div v-for="s in stats" :key="s.label" class="stat-card" :class="s.bg">
         <div>
-          <div class="enc-text">{{ msg.text }}</div>
-          <div class="enc-from">— 白鹿io · {{ today }}</div>
+          <div class="text-2xl font-extrabold text-[var(--color-text)]">{{ s.value }}</div>
+          <div class="text-xs text-[var(--color-text-soft)] mt-0.5">{{ s.label }}</div>
         </div>
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg" :class="s.iconBg">{{ s.icon }}</div>
       </div>
     </div>
 
-    <CurrencyConverter />
+    <!-- 换算器 -->
+    <div class="bg-white rounded-[var(--radius-card)] p-5 md:p-6 border border-pink-100/80 shadow-sm mb-5">
+      <div class="flex items-center gap-2 mb-4">
+        <span class="text-base">🧮</span>
+        <h3 class="text-base font-bold text-[var(--color-text)]">汇率换算器</h3>
+        <span class="text-[10px] font-semibold text-pink-500 bg-pink-50 px-2 py-0.5 rounded-full">实时</span>
+      </div>
 
-    <!-- 热门汇率 -->
-    <div class="section-head">
-      <h2>🔥 热门汇率</h2>
-      <button class="rf-btn" :class="{ spin: refreshing }" @click="refreshRates">🔄</button>
-    </div>
-
-    <div class="hot-grid">
-      <div v-for="(c,i) in hotCurrencies" :key="c.code" class="rate-card"
-        :style="{ animationDelay: i*30+'ms' }">
-        <div class="rc-top">
-          <span class="rc-flag">{{ c.flag }}</span>
-          <div class="rc-info">
-            <span class="rc-code">{{ c.code }}</span>
-            <span class="rc-name">{{ c.name }}</span>
+      <div class="flex flex-col md:flex-row items-stretch md:items-end gap-2.5 mb-3">
+        <div class="flex-1">
+          <label class="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5 block">持有货币</label>
+          <div class="flex items-center h-12 rounded-[var(--radius-input)] border border-pink-200 bg-pink-50/50 px-3 focus-within:border-pink-400 focus-within:ring-3 focus-within:ring-pink-100 transition-all">
+            <input v-model.number="amount" type="number" min="0" class="flex-1 bg-transparent outline-none text-lg font-bold text-[var(--color-text)] placeholder:text-pink-200 font-[inherit]" placeholder="0" />
+            <span class="text-sm font-bold text-pink-500 ml-1">{{ fromCurrency }}</span>
           </div>
         </div>
-        <div class="rc-val">
-          <span v-if="c.unit>1" class="rc-unit">{{ c.unit }}</span>
-          <span class="rc-num" :key="c.rate">{{ c.rate?.toFixed(4) || '--' }}</span>
+
+        <button @click="swapCurrencies" class="w-10 h-10 rounded-full border border-pink-200 bg-white flex items-center justify-center text-pink-500 hover:bg-pink-500 hover:text-white hover:border-pink-500 transition-all duration-200 shrink-0 self-center md:self-end md:mb-0.5">⇄</button>
+
+        <div class="flex-1">
+          <label class="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5 block">兑换结果</label>
+          <div class="flex items-center h-12 rounded-[var(--radius-input)] border border-pink-200 bg-pink-50/30 px-3">
+            <span class="text-lg font-extrabold text-pink-600 flex-1">{{ result }}</span>
+            <span class="text-sm font-bold text-emerald-500 ml-1">{{ toCurrency }}</span>
+          </div>
         </div>
-        <div class="rc-spark" v-if="sparkData[c.code]?.length>=2">
-          <Sparkline :data="sparkData[c.code]" :color="'#4a8cf7'" />
+      </div>
+
+      <div class="flex flex-wrap gap-1.5 mb-3">
+        <span class="text-[10px] text-[var(--color-text-muted)] mr-1 self-center">从</span>
+        <button v-for="c in currencies" :key="'f-'+c.code"
+          :class="['chip', fromCurrency===c.code ? 'chip-on' : '']"
+          @click="fromCurrency=c.code">{{ c.flag }} {{ c.code }}</button>
+      </div>
+      <div class="flex flex-wrap gap-1.5">
+        <span class="text-[10px] text-[var(--color-text-muted)] mr-1 self-center">到</span>
+        <button v-for="c in currencies" :key="'t-'+c.code"
+          :class="['chip', toCurrency===c.code ? 'chip-on' : '']"
+          @click="toCurrency=c.code">{{ c.flag }} {{ c.code }}</button>
+      </div>
+
+      <div v-if="rateInfo" class="mt-3 text-center text-xs text-[var(--color-text-soft)] bg-pink-50/50 py-2 rounded-xl">
+        1 <b class="text-[var(--color-text)]">{{ fromCurrency }}</b> = <b class="text-pink-600">{{ rateInfo }}</b> {{ toCurrency }}
+      </div>
+    </div>
+
+    <!-- 热门汇率 -->
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-base font-bold text-[var(--color-text)]">🔥 热门汇率</h3>
+      <button @click="refreshRates" class="w-8 h-8 rounded-full border border-pink-200 bg-white flex items-center justify-center text-sm text-pink-400 hover:bg-pink-50 hover:text-pink-600 transition-colors" :class="{ 'animate-spin': refreshing }">🔄</button>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-6">
+      <div v-for="(c,i) in hotCurrencies" :key="c.code" class="bg-white rounded-[var(--radius-card)] p-4 border border-pink-100/80 shadow-sm hover:shadow-md hover:border-pink-200 transition-all duration-200" :style="{ animationDelay: i*40+'ms' }" style="animation: fadeUp .4s cubic-bezier(.25,.1,.25,1) both">
+        <div class="flex items-center gap-2 mb-2.5">
+          <span class="text-xl">{{ c.flag }}</span>
+          <div>
+            <div class="text-xs font-bold text-[var(--color-text)]">{{ c.code }} <span class="text-[10px] font-normal text-[var(--color-text-muted)]">{{ c.name }}</span></div>
+          </div>
+        </div>
+        <div class="text-xl font-extrabold text-[var(--color-text)] tracking-tight">
+          <span v-if="c.unit>1" class="text-xs text-[var(--color-text-muted)] font-medium">{{ c.unit }}</span>
+          {{ c.rate?.toFixed(4) || '--' }}
+        </div>
+        <div class="mt-2 h-7" v-if="sparkData[c.code]?.length>=2">
+          <Sparkline :data="sparkData[c.code]" color="#ff6b8a" />
         </div>
       </div>
     </div>
 
     <!-- 全部币种 -->
-    <div class="section-head">
-      <h2>🌍 全部币种</h2>
-      <span class="count">{{ allCurrencies.length }} 种</span>
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-base font-bold text-[var(--color-text)]">🌍 全部币种</h3>
+      <span class="text-xs text-[var(--color-text-muted)]">{{ allCurrencies.length }} 种</span>
     </div>
 
-    <div class="all-table">
-      <div class="all-header">
-        <span class="ah-flag">货币</span>
-        <span class="ah-code">代码</span>
-        <span class="ah-name">名称</span>
-        <span class="ah-rate">汇率 (CNY)</span>
+    <div class="bg-white rounded-[var(--radius-card)] border border-pink-100/80 shadow-sm overflow-hidden">
+      <div class="flex items-center px-4 py-2.5 bg-pink-50/50 border-b border-pink-100 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+        <span class="w-14">货币</span><span class="w-12">代码</span><span class="flex-1">名称</span><span class="w-24 text-right">汇率 (CNY)</span>
       </div>
-      <div v-for="c in allCurrencies" :key="c.code" class="all-row">
-        <span class="ar-flag">{{ c.flag }}</span>
-        <span class="ar-code">{{ c.code }}</span>
-        <span class="ar-name">{{ c.name }}</span>
-        <span class="ar-rate">
+      <div v-for="c in allCurrencies" :key="c.code" class="flex items-center px-4 py-2 border-b border-pink-50 text-[13px] hover:bg-pink-50/30 transition-colors last:border-b-0">
+        <span class="w-14 text-base">{{ c.flag }}</span>
+        <span class="w-12 font-semibold text-[var(--color-text)]">{{ c.code }}</span>
+        <span class="flex-1 text-[var(--color-text-soft)] truncate">{{ c.name }}</span>
+        <span class="w-24 text-right font-semibold text-[var(--color-text-soft)] font-mono text-xs">
           <template v-if="c.unit>1">{{ c.unit }}</template>
           {{ c.rate?.toFixed(4) || '--' }}
         </span>
       </div>
+    </div>
+
+    <!-- 页脚 -->
+    <div class="mt-8 pb-4 text-center">
+      <p class="text-[11px] text-[var(--color-text-muted)]">数据仅供参考，请以实际银行汇率为准</p>
+      <p class="text-[11px] text-[var(--color-text-muted)] mt-1">
+        <span class="font-medium">🦌 白鹿io</span> · 汇率工具
+      </p>
     </div>
   </div>
 </template>
@@ -100,129 +121,54 @@
 <script setup>
 import { ref,reactive,onMounted,computed } from 'vue'
 import { fetchLiveRates,buildCurrencyList,fetchHistory,getCNYHistory,HOT_CURRENCIES } from '../api/exchangeRate.js'
-import CurrencyConverter from '../components/CurrencyConverter.vue'
 import Sparkline from '../components/Sparkline.vue'
 
 const emit = defineEmits(['updateTime','refreshStart','refreshEnd'])
-const loading=ref(true), refreshing=ref(false), lastTime=ref('')
+const loading=ref(true), refreshing=ref(false), lastTime=ref('--')
 const rawRates=reactive({}), sparkData=reactive({})
 
-const today=computed(()=>`${new Date().getMonth()+1}月${new Date().getDate()}日`)
-const msgs=[{emoji:'🌸',text:'每一天都是全新的汇率，也是全新的你'},{emoji:'💫',text:'宇宙那么大，相遇本身就是奇迹'},{emoji:'✨',text:'做颗星星，有棱有角，还会发光'},{emoji:'🌈',text:'生活起起落落，但总会越来越好'},{emoji:'💎',text:'压力是暂时的，你是闪闪发光的'},{emoji:'☀️',text:'新的一天，新的好运气'},{emoji:'🦋',text:'做自己喜欢的事'},{emoji:'🎀',text:'今天也要元气满满'},{emoji:'🍀',text:'好运偏爱努力又善良的人'},{emoji:'💖',text:'有人在偷偷关心你'},{emoji:'🌟',text:'你值得所有美好'}]
-const msg=computed(()=>msgs[new Date().getDate()%msgs.length])
+const stats=computed(()=>[
+  { label:'支持币种', value: buildCurrencyList(rawRates).filter(c=>c.code!=='CNY').length, icon:'🌐', bg:'', iconBg:'bg-blue-50 text-blue-400' },
+  { label:'热门汇率', value: buildCurrencyList(rawRates).filter(c=>HOT_CURRENCIES.includes(c.code)).length, icon:'🔥', bg:'', iconBg:'bg-amber-50 text-amber-400' },
+  { label:'刷新频率', value:'30s', icon:'⚡', bg:'', iconBg:'bg-emerald-50 text-emerald-400' },
+  { label:'最后更新', value: lastTime.value, icon:'🕐', bg:'', iconBg:'bg-purple-50 text-purple-400' },
+])
+
+// 换算器
+const currencies = HOT_CURRENCIES.map(code => {
+  const meta = { USD:{flag:'🇺🇸'},EUR:{flag:'🇪🇺'},GBP:{flag:'🇬🇧'},JPY:{flag:'🇯🇵'},AUD:{flag:'🇦🇺'},CAD:{flag:'🇨🇦'},CHF:{flag:'🇨🇭'},NZD:{flag:'🇳🇿'},SGD:{flag:'🇸🇬'},HKD:{flag:'🇭🇰'},KRW:{flag:'🇰🇷'},THB:{flag:'🇹🇭'},MYR:{flag:'🇲🇾'},PHP:{flag:'🇵🇭'},IDR:{flag:'🇮🇩'},VND:{flag:'🇻🇳'},INR:{flag:'🇮🇳'} }
+  return { code, flag: meta[code]?.flag || '💱' }
+})
+const amount=ref(100), fromCurrency=ref('USD'), toCurrency=ref('CNY'), allRates=ref({})
+const result=computed(()=>{ if(!amount.value||amount.value<=0)return'0.00';const r=crossRate();return r?(amount.value*r).toFixed(2):'--' })
+const rateInfo=computed(()=>{const r=crossRate();return r?.toFixed(4)||null})
+function crossRate(){const r=allRates.value;if(!r)return null;const f=fromCurrency.value,t=toCurrency.value;if(f===t)return 1;const f2c=f==='CNY'?1:(r[f]?1/r[f]:null);const c2t=t==='CNY'?1:(r[t]||null);return f2c!=null&&c2t!=null?f2c*c2t:null}
+function swapCurrencies(){[fromCurrency.value,toCurrency.value]=[toCurrency.value,fromCurrency.value]}
 
 const hotCurrencies=computed(()=>buildCurrencyList(rawRates).filter(c=>HOT_CURRENCIES.includes(c.code)))
 const allCurrencies=computed(()=>buildCurrencyList(rawRates).filter(c=>c.code!=='CNY'&&!HOT_CURRENCIES.includes(c.code)))
-const currencyCount=computed(()=>buildCurrencyList(rawRates).filter(c=>c.code!=='CNY').length)
-const hotCount=computed(()=>hotCurrencies.value.length)
 
-async function loadSpark(){ try{ const d=await fetchHistory(7); HOT_CURRENCIES.forEach(c=>{ const v=getCNYHistory(d,c); if(v.length>=2) sparkData[c]=v }) }catch{} }
+async function loadSpark(){try{const d=await fetchHistory(7);HOT_CURRENCIES.forEach(c=>{const v=getCNYHistory(d,c);if(v.length>=2)sparkData[c]=v})}catch{}}
 
 async function refreshRates(){
-  refreshing.value=true; emit('refreshStart')
-  try{ const d=await fetchLiveRates(); Object.assign(rawRates,d.rates||{}); loading.value=false; lastTime.value=new Date().toLocaleTimeString('zh-CN',{hour12:false}); emit('updateTime',lastTime.value) }catch{}
-  finally{ refreshing.value=false; emit('refreshEnd') }
+  refreshing.value=true;emit('refreshStart')
+  try{const d=await fetchLiveRates();Object.assign(rawRates,d.rates||{});allRates.value=d.rates||{};loading.value=false;lastTime.value=new Date().toLocaleTimeString('zh-CN',{hour12:false});emit('updateTime',lastTime.value)}catch{}
+  finally{refreshing.value=false;emit('refreshEnd')}
 }
 
-onMounted(async()=>{ await Promise.all([refreshRates(),loadSpark()]); setInterval(refreshRates,30000) })
+onMounted(async()=>{await Promise.all([refreshRates(),loadSpark()]);setInterval(refreshRates,30000)})
 </script>
 
-<style lang="scss" scoped>
-.page { max-width:1400px; margin:0 auto }
-
-/* 统计卡片 */
-.stat-row {
-  display:grid; gap:12px; margin-bottom:20px;
-  grid-template-columns:repeat(2,1fr);
-  @media(min-width:600px){ grid-template-columns:repeat(4,1fr) }
-}
-
+<style>
+@reference "tailwindcss";
 .stat-card {
-  background:var(--bg-card); border:1px solid var(--border);
-  border-radius:var(--r-md); padding:16px 20px;
-  display:flex; align-items:center; justify-content:space-between;
-  box-shadow:var(--shadow);
-  .sc-val { font-size:22px; font-weight:700; color:var(--text) }
-  .sc-label { font-size:12px; color:var(--text2); margin-top:2px }
-  .sc-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px }
+  @apply bg-white rounded-[var(--radius-card)] p-4 border border-pink-100/80 shadow-sm flex items-center justify-between;
 }
-
-/* 鼓励语 */
-.encourage {
-  background:var(--bg-card); border:1px solid var(--border);
-  border-radius:var(--r-md); padding:14px 18px; margin-bottom:16px;
-  display:flex; align-items:center; gap:12px; box-shadow:var(--shadow);
-  .enc-emoji { font-size:28px }
-  .enc-text { font-size:14px; font-weight:600; color:var(--text) }
-  .enc-from { font-size:12px; color:var(--text3); margin-top:2px }
+.chip {
+  @apply inline-flex items-center gap-0.5 px-2.5 py-1.5 rounded-full border border-pink-200 bg-white text-[11px] font-medium text-[var(--color-text-soft)] transition-all duration-150 cursor-pointer hover:border-pink-400 hover:text-pink-500;
 }
-
-.section-head {
-  display:flex; align-items:center; justify-content:space-between;
-  margin:20px 0 10px;
-  h2 { font-size:15px; font-weight:700; color:var(--text) }
-  .count { font-size:12px; color:var(--text3); font-weight:500 }
+.chip-on {
+  @apply bg-pink-500 text-white border-pink-500 font-semibold shadow-sm;
 }
-
-.rf-btn {
-  width:30px; height:30px; border-radius:6px;
-  border:1px solid var(--border); background:var(--bg-card); cursor:pointer;
-  font-size:13px; color:var(--text2); transition:all .3s;
-  &:hover { border-color:var(--accent); color:var(--accent) }
-  &.spin { animation:spin .8s linear infinite }
-}
-@keyframes spin { to{transform:rotate(360deg)} }
-
-/* 热门卡片 */
-.hot-grid {
-  display:grid; gap:10px;
-  grid-template-columns:repeat(2,1fr);
-  @media(min-width:600px){ grid-template-columns:repeat(3,1fr) }
-  @media(min-width:900px){ grid-template-columns:repeat(4,1fr) }
-}
-
-.rate-card {
-  background:var(--bg-card); border:1px solid var(--border);
-  border-radius:var(--r-md); padding:14px 16px;
-  box-shadow:var(--shadow);
-  animation:fadeUp .4s var(--ease) both;
-  transition:all .15s;
-  &:hover { border-color:var(--accent); box-shadow:var(--shadow-md) }
-}
-
-.rc-top { display:flex; align-items:center; gap:8px; margin-bottom:8px }
-.rc-flag { font-size:22px; line-height:1 }
-.rc-code { font-size:13px; font-weight:700; color:var(--text) }
-.rc-name { font-size:10px; color:var(--text3); font-weight:400; display:block }
-
-.rc-val { display:flex; align-items:baseline; gap:2px; margin-bottom:6px }
-.rc-unit { font-size:11px; color:var(--text3) }
-.rc-num { font-size:22px; font-weight:800; font-variant-numeric:tabular-nums; color:var(--text) }
-.rc-spark { min-width:70px }
-
-/* 全部币种表格 */
-.all-table {
-  background:var(--bg-card); border:1px solid var(--border);
-  border-radius:var(--r-md); overflow:hidden; box-shadow:var(--shadow);
-}
-
-.all-header {
-  display:flex; align-items:center; padding:10px 16px;
-  background:var(--bg-input); border-bottom:1px solid var(--border);
-  font-size:12px; font-weight:600; color:var(--text2);
-  .ah-flag { width:52px } .ah-code { width:50px } .ah-name { flex:1 } .ah-rate { width:100px; text-align:right }
-}
-
-.all-row {
-  display:flex; align-items:center; padding:8px 16px;
-  border-bottom:1px solid var(--border); font-size:13px;
-  transition:background .1s;
-  &:last-child { border-bottom:none }
-  &:hover { background:var(--bg-input) }
-
-  .ar-flag { width:52px; font-size:16px }
-  .ar-code { width:50px; font-weight:600; color:var(--text) }
-  .ar-name { flex:1; color:var(--text2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
-  .ar-rate { width:100px; text-align:right; font-weight:600; font-variant-numeric:tabular-nums; color:var(--text2) }
-}
+@keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
 </style>
