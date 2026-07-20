@@ -224,19 +224,13 @@ async function refreshRates(){
   try{
     const d=await fetchLiveRates()
     if (d?.rates && Object.keys(d.rates).length > 0) {
-      // 只清理旧数据保留新数据，不用 Object.assign 清除
-      for (const key of Object.keys(rawRates)) {
-        if (!(key in d.rates)) delete rawRates[key]
-      }
-      for (const [key, val] of Object.entries(d.rates)) {
-        rawRates[key] = val
-      }
+      Object.assign(rawRates, d.rates)
       convCnyRates.value = d.rates
       lastTime.value = new Date().toLocaleTimeString('zh-CN',{hour12:false})
       emit('updateTime',lastTime.value)
     }
     loading.value=false
-  }catch{}
+  }catch(e){console.error('刷新汇率失败',e)}
   finally{refreshing.value=false;emit('refreshEnd')}
 }
 
