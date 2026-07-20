@@ -1,0 +1,52 @@
+/* === 全局样式 === */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #303133;
+  background: #f5f7fa;
+}
+
+#app {
+  height: 100%;
+}
+
+/* === 滚动条美化 === */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c0c4cc;
+  border-radius: 3px;
+
+  &:hover {
+    background: #909399;
+  }
+}
+
+/* === Element Plus 覆盖 === */
+.el-menu-item.is-active {
+  font-weight: 600;
+}
+
+.el-breadcrumb__inner {
+  color: #606266 !important;
+  font-weight: 400 !important;
+}
+.el-breadcrumb__item:last-child .el-breadcrumb__inner {
+  color: #303133 !important;
+  font-weight: 500 !important;
+}
