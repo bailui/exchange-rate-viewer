@@ -140,7 +140,7 @@
 </template>
 
 <script setup>
-import { ref,onMounted,onUnmounted,computed } from 'vue'
+import { ref,reactive,onMounted,onUnmounted,computed } from 'vue'
 import { fetchLiveRates,buildCurrencyList,fetchHistory,getCNYHistory,HOT_CURRENCIES,CURRENCY_META } from '../api/exchangeRate.js'
 import Sparkline from '../components/Sparkline.vue'
 
