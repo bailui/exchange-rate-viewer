@@ -35,15 +35,15 @@
         <!-- 左侧：持有 -->
         <div class="flex-1">
           <label class="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5 block">
-            持有 · <span class="text-[var(--color-success)]">{{ convFrom === 'CNY' ? '人民币' : convFrom === 'USD' ? '美元' : convFrom === 'EUR' ? '欧元' : convFrom === 'GBP' ? '英镑' : convFrom === 'JPY' ? '日元' : convFrom }}</span>
+            持有 · <span class="text-[var(--color-primary)]">{{ convFrom === 'CNY' ? '人民币' : convFrom === 'USD' ? '美元' : convFrom === 'EUR' ? '欧元' : convFrom === 'GBP' ? '英镑' : convFrom === 'JPY' ? '日元' : convFrom }}</span>
           </label>
           <div class="flex items-stretch gap-2">
             <select v-model="convFrom" class="curr-sel w-[140px] flex-shrink-0">
               <option v-for="c in allCurrenciesFull" :key="'f-'+c.code" :value="c.code">{{ c.flag }} {{ c.code }} {{ c.name }}</option>
             </select>
-            <div class="flex-1 flex items-center bg-emerald-50 border border-emerald-100 rounded-xl px-3 min-w-0">
+            <div class="flex-1 flex items-center bg-pink-50 border border-pink-100 rounded-xl px-3 min-w-0">
               <input v-model.number="convAmount" type="number" min="0" class="flex-1 min-w-0 bg-transparent outline-none text-lg font-bold text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]" placeholder="0" />
-              <span class="text-sm font-bold text-white bg-[var(--color-success)] px-2 py-0.5 rounded-full ml-2 flex-shrink-0">{{ convFrom === 'CNY' ? '人民币' : convFrom === 'USD' ? '美元' : convFrom === 'EUR' ? '欧元' : convFrom === 'GBP' ? '英镑' : convFrom === 'JPY' ? '日元' : convFrom }}</span>
+              <span class="text-sm font-bold text-white bg-[var(--color-primary)] px-2 py-0.5 rounded-full ml-2 flex-shrink-0">{{ convFrom === 'CNY' ? '人民币' : convFrom === 'USD' ? '美元' : convFrom === 'EUR' ? '欧元' : convFrom === 'GBP' ? '英镑' : convFrom === 'JPY' ? '日元' : convFrom }}</span>
             </div>
           </div>
         </div>
@@ -54,15 +54,15 @@
         <!-- 右侧：结果 -->
         <div class="flex-1">
           <label class="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5 block">
-            兑换结果 · <span class="text-[var(--color-primary)]">{{ convTo === 'CNY' ? '人民币' : convTo === 'USD' ? '美元' : convTo === 'EUR' ? '欧元' : convTo === 'GBP' ? '英镑' : convTo === 'JPY' ? '日元' : convTo }}</span>
+            兑换结果 · <span class="text-[var(--color-success)]">{{ convTo === 'CNY' ? '人民币' : convTo === 'USD' ? '美元' : convTo === 'EUR' ? '欧元' : convTo === 'GBP' ? '英镑' : convTo === 'JPY' ? '日元' : convTo }}</span>
           </label>
           <div class="flex items-stretch gap-2">
             <select v-model="convTo" class="curr-sel w-[140px] flex-shrink-0">
               <option v-for="c in allCurrenciesFull" :key="'t-'+c.code" :value="c.code">{{ c.flag }} {{ c.code }} {{ c.name }}</option>
             </select>
-            <div class="flex-1 flex items-center bg-[var(--color-primary-light)] border border-[var(--color-primary-light)] rounded-xl px-3 min-w-0">
-              <span class="text-lg font-extrabold text-[var(--color-primary)] truncate">{{ convResult }}</span>
-              <span class="text-sm font-bold text-white bg-[var(--color-primary)] px-2 py-0.5 rounded-full ml-2 flex-shrink-0">{{ convTo === 'CNY' ? '人民币' : convTo }}</span>
+            <div class="flex-1 flex items-center bg-emerald-50 border border-emerald-100 rounded-xl px-3 min-w-0">
+              <span class="text-lg font-extrabold text-[var(--color-success)] truncate">{{ convResult }}</span>
+              <span class="text-sm font-bold text-white bg-[var(--color-success)] px-2 py-0.5 rounded-full ml-2 flex-shrink-0">{{ convTo === 'CNY' ? '人民币' : convTo }}</span>
             </div>
           </div>
         </div>
