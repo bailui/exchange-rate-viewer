@@ -140,14 +140,14 @@
 </template>
 
 <script setup>
-import { ref,reactive,onMounted,onUnmounted,computed } from 'vue'
+import { ref,onMounted,onUnmounted,computed } from 'vue'
 import { fetchLiveRates,buildCurrencyList,fetchHistory,getCNYHistory,HOT_CURRENCIES,CURRENCY_META } from '../api/exchangeRate.js'
 import Sparkline from '../components/Sparkline.vue'
 
 const emit = defineEmits(['updateTime','refreshStart','refreshEnd'])
 
 const loading=ref(true), refreshing=ref(false), lastTime=ref('')
-const rawRates=reactive({}), sparkData=reactive({})
+const rawRates=ref({}), sparkData=reactive({})
 
 // 换算器
 const convAmount=ref(100), convFrom=ref('USD'), convTo=ref('CNY')
@@ -165,7 +165,7 @@ const hotChips = computed(() => HOT_CURRENCIES.map(code => ({ code, flag: CURREN
 // 全部币种（含热门），用于换算器的下拉选择
 // 初始时预填热门币种，避免下拉框为空
 const allCurrenciesFull = computed(() => {
-  const list = buildCurrencyList(rawRates)
+  const list = buildCurrencyList(rawRates.value)
   if (list.length > 0) return list
   // fallback：API 返回前先展示热门币种（含 CNY）
   const fallback = HOT_CURRENCIES.map(code => ({
@@ -180,8 +180,8 @@ const allCurrenciesFull = computed(() => {
 })
 
 // 汇率数据
-const hotCurrencies=computed(()=>buildCurrencyList(rawRates).filter(c=>HOT_CURRENCIES.includes(c.code)))
-const allCurrencies=computed(()=>buildCurrencyList(rawRates).filter(c=>c.code!=='CNY'&&!HOT_CURRENCIES.includes(c.code)))
+const hotCurrencies=computed(()=>buildCurrencyList(rawRates.value).filter(c=>HOT_CURRENCIES.includes(c.code)))
+const allCurrencies=computed(()=>buildCurrencyList(rawRates.value).filter(c=>c.code!=='CNY'&&!HOT_CURRENCIES.includes(c.code)))
 
 const searchQuery=ref('')
 const currentPage=ref(1)
@@ -211,7 +211,7 @@ const visiblePages=computed(()=>{
 })
 
 const stats=computed(()=>[
-  { label:'支持币种', value: buildCurrencyList(rawRates).filter(c=>c.code!=='CNY').length, icon:'🌐', bg:'bg-blue-50/40' },
+  { label:'支持币种', value: buildCurrencyList(rawRates.value).filter(c=>c.code!=='CNY').length, icon:'🌐', bg:'bg-blue-50/40' },
   { label:'热门汇率', value: hotCurrencies.value.length, icon:'🔥', bg:'bg-amber-50/40' },
   { label:'刷新频率', value:'30s', icon:'⚡', bg:'bg-emerald-50/40' },
   { label:'最后更新', value: lastTime.value||'--', icon:'🕐', bg:'bg-purple-50/40' },
@@ -224,7 +224,7 @@ async function refreshRates(){
   try{
     const d=await fetchLiveRates()
     if (d?.rates && Object.keys(d.rates).length > 0) {
-      Object.assign(rawRates, d.rates)
+      rawRates.value = { ...d.rates }
       convCnyRates.value = d.rates
       lastTime.value = new Date().toLocaleTimeString('zh-CN',{hour12:false})
       emit('updateTime',lastTime.value)
