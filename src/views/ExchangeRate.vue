@@ -1,81 +1,69 @@
 <template>
-  <div class="exchange-rate-page">
-    <!-- 🌸 可爱概览横幅 -->
-    <div class="cute-banner">
-      <div class="banner-sparkles">
-        <span class="sparkle">✨</span>
-        <span class="sparkle delay-1">💖</span>
-        <span class="sparkle delay-2">🌸</span>
-      </div>
-      <div class="banner-content">
-        <h2 class="banner-title">汇率小助手</h2>
-        <p class="banner-subtitle">
-          基准货币：人民币 (CNY) · 自动刷新 · 比心
-        </p>
-      </div>
-      <div class="banner-status">
-        <el-tag
-          :type="statusType"
-          effect="plain"
-          size="large"
-          round
-          class="status-tag"
-        >
-          {{ statusEmoji }} {{ statusText }}
-        </el-tag>
-        <el-button
-          :icon="Refresh"
-          circle
-          size="large"
-          :loading="refreshing"
-          @click="refreshRates"
-          class="refresh-btn"
-        />
-      </div>
+  <div class="page">
+    <!-- 背景装饰 -->
+    <div class="bg-deco deco-1"></div>
+    <div class="bg-deco deco-2"></div>
+    <div class="bg-deco deco-3"></div>
+
+    <!-- 🧮 计算器 -->
+    <CurrencyConverter />
+
+    <!-- 📊 汇率卡片 -->
+    <div class="section-header">
+      <h2 class="section-title">实时汇率</h2>
+      <el-button :icon="Refresh" circle size="small" :loading="refreshing" @click="refreshRates" class="refresh-btn" />
     </div>
 
-    <!-- 🌷 汇率卡片网格 — 2行 × 5列 -->
     <div class="rate-grid">
       <RateCard
-        v-for="currency in focusCurrencies"
+        v-for="(currency, i) in focusCurrencies"
         :key="currency.code"
         :currency="currency"
         :rate="rates[currency.code]"
         :change-percent="changes[currency.code] || 0"
         :loading="loading && !rates[currency.code]"
         :error="hasError[currency.code]"
+        :delay="i * 60"
       />
     </div>
 
-    <!-- 🌺 快捷换算 -->
-    <div class="converter-section">
-      <h3 class="section-title">💝 快捷换算</h3>
-      <div class="converter-grid">
+    <!-- 🔄 快捷参考 -->
+    <div class="quick-ref glass">
+      <h3 class="section-title-sm">快捷参考</h3>
+      <div class="ref-grid">
         <div
-          v-for="currency in focusCurrencies"
-          :key="'conv-' + currency.code"
-          class="converter-card"
+          v-for="c in focusCurrencies.slice(0, 5)"
+          :key="'ref-' + c.code"
+          class="ref-item"
         >
-          <span class="conv-flag">{{ currency.flag }}</span>
-          <div class="conv-info">
-            <span class="conv-label">{{ currency.code }} / CNY</span>
-            <span class="conv-rate">
-              {{ currency.unit }} {{ currency.code }} = <strong>{{ rates[currency.code]?.toFixed(4) || '--' }}</strong> CNY
-            </span>
-            <span class="conv-reverse">
-              100 CNY ≈ <strong>{{ rates[currency.code] ? (100 / rates[currency.code] * currency.unit).toFixed(2) : '--' }}</strong> {{ currency.code }}
-            </span>
-          </div>
+          <span class="ref-flag">{{ c.flag }}</span>
+          <span class="ref-rate">
+            {{ c.unit }} {{ c.code }} = <strong>{{ rates[c.code]?.toFixed(4) ?? '--' }}</strong> CNY
+          </span>
         </div>
+        <div
+          v-for="c in focusCurrencies.slice(5)"
+          :key="'ref-' + c.code"
+          class="ref-item"
+        >
+          <span class="ref-flag">{{ c.flag }}</span>
+          <span class="ref-rate">
+            {{ c.unit }} {{ c.code }} = <strong>{{ rates[c.code]?.toFixed(4) ?? '--' }}</strong> CNY
+          </span>
+        </div>
+      </div>
+      <div class="ref-disclaimer">
+        数据来源 ExchangeRate API · 每小时更新 · 仅供参考
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { fetchExchangeRates, FOCUS_CURRENCIES, calculateRate } from '../api/exchangeRate.js'
 import RateCard from '../components/RateCard.vue'
+import CurrencyConverter from '../components/CurrencyConverter.vue'
 
 const emit = defineEmits(['updateTime', 'refreshStart', 'refreshEnd'])
 
@@ -85,29 +73,11 @@ const changes = reactive({})
 const hasError = reactive({})
 const loading = ref(true)
 const refreshing = ref(false)
-const lastUpdateTime = ref('')
 const prevRates = reactive({})
+const lastUpdateTime = ref('')
 
-let refreshTimer = null
-const REFRESH_INTERVAL = 30 * 1000 // 30秒
-
-const statusText = computed(() => {
-  if (loading.value && !Object.keys(rates).length) return '加载中...'
-  if (lastUpdateTime.value) return `已更新 ${lastUpdateTime.value}`
-  return '就绪'
-})
-
-const statusEmoji = computed(() => {
-  if (loading.value && !Object.keys(rates).length) return '⏳'
-  if (lastUpdateTime.value) return '💚'
-  return '🌸'
-})
-
-const statusType = computed(() => {
-  if (loading.value && !Object.keys(rates).length) return 'warning'
-  if (lastUpdateTime.value) return 'success'
-  return ''
-})
+let timer = null
+const INTERVAL = 30_000
 
 async function refreshRates() {
   refreshing.value = true
@@ -115,8 +85,8 @@ async function refreshRates() {
   try {
     const data = await fetchExchangeRates()
     updateRates(data)
-  } catch (err) {
-    console.error('刷新失败:', err)
+  } catch (e) {
+    console.error(e)
   } finally {
     refreshing.value = false
     emit('refreshEnd')
@@ -124,201 +94,156 @@ async function refreshRates() {
 }
 
 function updateRates(data) {
-  const cnyRates = data.rates
-  if (!cnyRates) return
-
-  focusCurrencies.forEach(cur => {
-    if (rates[cur.code] && prevRates[cur.code]) {
-      const oldRate = prevRates[cur.code]
-      const newRate = calculateRate(cnyRates, cur.code, cur.unit)
-      if (oldRate && newRate) {
-        changes[cur.code] = parseFloat(((newRate - oldRate) / oldRate * 100).toFixed(2))
-      }
+  const r = data.rates
+  if (!r) return
+  focusCurrencies.forEach(c => {
+    if (rates[c.code] && prevRates[c.code]) {
+      const oldR = prevRates[c.code]
+      const newR = calculateRate(r, c.code, c.unit)
+      if (oldR && newR) changes[c.code] = +((newR - oldR) / oldR * 100).toFixed(2)
     }
-    prevRates[cur.code] = rates[cur.code]
-
-    const rate = calculateRate(cnyRates, cur.code, cur.unit)
-    if (rate) {
-      rates[cur.code] = rate
-      hasError[cur.code] = false
-    } else {
-      hasError[cur.code] = true
-    }
+    prevRates[c.code] = rates[c.code]
+    const rate = calculateRate(r, c.code, c.unit)
+    rate ? (rates[c.code] = rate, hasError[c.code] = false) : (hasError[c.code] = true)
   })
-
-  const now = new Date()
-  lastUpdateTime.value = now.toLocaleTimeString('zh-CN', { hour12: false })
+  lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
   emit('updateTime', lastUpdateTime.value)
   loading.value = false
 }
 
 onMounted(async () => {
   await refreshRates()
-  refreshTimer = setInterval(refreshRates, REFRESH_INTERVAL)
+  timer = setInterval(refreshRates, INTERVAL)
 })
-
-onUnmounted(() => {
-  if (refreshTimer) clearInterval(refreshTimer)
-})
+onUnmounted(() => clearInterval(timer))
 </script>
 
 <style lang="scss" scoped>
-.exchange-rate-page {
-  max-width: 1600px;
+.page {
+  max-width: 1400px;
   margin: 0 auto;
+  position: relative;
 }
 
-/* === 🌸 横幅 === */
-.cute-banner {
-  background: linear-gradient(135deg, #ff9eb5 0%, #ff6b9d 30%, #f472b6 60%, #e879f9 100%);
-  border-radius: var(--radius-lg);
-  padding: 28px 32px;
-  margin-bottom: 24px;
+/* === 背景装饰球 === */
+.bg-deco {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+.deco-1 {
+  top: 60px;
+  right: -40px;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(0,122,255,.18) 0%, rgba(0,122,255,.04) 40%, transparent 70%);
+  animation: float 8s ease-in-out infinite;
+}
+.deco-2 {
+  top: 400px;
+  left: -60px;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(circle, rgba(175,82,222,.16) 0%, rgba(175,82,222,.04) 40%, transparent 70%);
+  animation: float 10s ease-in-out infinite 2s;
+}
+.deco-3 {
+  bottom: 100px;
+  right: 20px;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(255,159,10,.12) 0%, rgba(255,159,10,.03) 40%, transparent 70%);
+  animation: float 9s ease-in-out infinite 4s;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) scale(1) }
+  33% { transform: translate(10px, -15px) scale(1.05) }
+  66% { transform: translate(-8px, 10px) scale(.97) }
+}
+
+.section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #fff;
-  box-shadow: 0 8px 30px rgba(255, 107, 157, 0.25);
-  position: relative;
-  overflow: hidden;
+  margin-bottom: 12px;
 
-  .banner-sparkles {
-    position: absolute;
-    top: 10px;
-    right: 120px;
-    display: flex;
-    gap: 8px;
-
-    .sparkle {
-      font-size: 18px;
-      animation: twinkle 2s ease-in-out infinite;
-      &.delay-1 { animation-delay: 0.6s; }
-      &.delay-2 { animation-delay: 1.2s; }
-    }
+  .section-title {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    color: var(--text-primary);
   }
 
-  .banner-content {
-    .banner-title {
-      font-size: 24px;
-      font-weight: 800;
-      margin: 0 0 6px 0;
-      letter-spacing: 2px;
-    }
-    .banner-subtitle {
-      font-size: 13px;
-      color: rgba(255, 255, 255, 0.8);
-      margin: 0;
-    }
-  }
-
-  .banner-status {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-
-    .status-tag {
-      border-color: rgba(255, 255, 255, 0.4);
-      color: #fff;
-      background: rgba(255, 255, 255, 0.15);
-      font-weight: 600;
-    }
-
-    .refresh-btn {
-      background: rgba(255, 255, 255, 0.2);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      color: #fff;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
-
-      &:hover {
-        background: rgba(255, 255, 255, 0.3);
-        transform: rotate(30deg);
-      }
-    }
+  .refresh-btn {
+    border: 1px solid rgba(0,0,0,.08);
+    background: var(--bg-secondary);
+    box-shadow: none;
+    &:hover { background: rgba(0,0,0,.04) }
   }
 }
 
-@keyframes twinkle {
-  0%, 100% { opacity: 0.3; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1.2); }
-}
-
-/* === 卡片网格 === */
+/* 卡片网格 */
 .rate-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 16px;
-  margin-bottom: 28px;
+  gap: 12px;
+  margin-bottom: 20px;
 
-  @media (max-width: 1400px) { grid-template-columns: repeat(3, 1fr); }
-  @media (max-width: 900px)  { grid-template-columns: repeat(2, 1fr); }
-  @media (max-width: 560px)  { grid-template-columns: 1fr; }
+  @media (max-width: 1400px) { grid-template-columns: repeat(3, 1fr) }
+  @media (max-width: 900px)  { grid-template-columns: repeat(2, 1fr) }
+  @media (max-width: 560px)  { grid-template-columns: 1fr }
 }
 
-/* === 换算区 === */
-.converter-section {
-  background: #fff;
-  border-radius: var(--radius-lg);
-  padding: 24px;
-  box-shadow: var(--shadow-card);
-  border: 1px solid var(--pink-200);
+/* 快捷参考 */
+.quick-ref {
+  border-radius: var(--radius-xl);
+  padding: 20px 24px;
+  box-shadow: var(--glass-shadow);
+  animation: fadeUp .5s var(--ease-out) both;
+  animation-delay: .6s;
+  position: relative;
+  z-index: 1;
+}
 
-  .section-title {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--pink-500);
-    margin: 0 0 16px 0;
+.section-title-sm {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+  letter-spacing: -.02em;
+}
+
+.ref-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px 16px;
+  margin-bottom: 12px;
+
+  @media (max-width: 1200px) { grid-template-columns: repeat(3, 1fr) }
+  @media (max-width: 700px)  { grid-template-columns: repeat(2, 1fr) }
+}
+
+.ref-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 13px;
+
+  .ref-flag { font-size: 18px; line-height: 1 }
+  .ref-rate {
+    color: var(--text-secondary);
+    strong { color: var(--text-primary); font-weight: 600 }
   }
+}
 
-  .converter-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 12px;
-
-    @media (max-width: 1400px) { grid-template-columns: repeat(3, 1fr); }
-    @media (max-width: 900px)  { grid-template-columns: repeat(2, 1fr); }
-    @media (max-width: 560px)  { grid-template-columns: 1fr; }
-  }
-
-  .converter-card {
-    background: var(--pink-100);
-    border-radius: var(--radius-md);
-    padding: 14px;
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    transition: all 0.3s ease;
-
-    &:hover {
-      background: var(--pink-200);
-      transform: translateY(-2px);
-    }
-
-    .conv-flag { font-size: 24px; line-height: 1; }
-
-    .conv-info {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-
-      .conv-label {
-        font-size: 11px;
-        color: var(--pink-500);
-        font-weight: 600;
-        letter-spacing: 0.5px;
-      }
-
-      .conv-rate {
-        font-size: 13px;
-        color: var(--text-primary);
-        strong { color: var(--pink-600); }
-      }
-
-      .conv-reverse {
-        font-size: 12px;
-        color: var(--text-secondary);
-        strong { color: var(--text-primary); }
-      }
-    }
-  }
+.ref-disclaimer {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0,0,0,.04);
 }
 </style>

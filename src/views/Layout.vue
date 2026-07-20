@@ -1,59 +1,45 @@
 <template>
   <div class="app-layout">
-    <!-- 侧边栏 — 粉色可爱风 -->
+    <!-- 侧边栏 — Apple 风格 -->
     <aside class="sidebar" :class="{ collapsed: isCollapse }">
-      <div class="logo">
-        <span class="logo-emoji">💱</span>
-        <span v-show="!isCollapse" class="logo-text">汇率小助手</span>
+      <div class="sidebar-logo" @click="isCollapse = !isCollapse">
+        <span class="logo-icon">💱</span>
+        <span v-show="!isCollapse" class="logo-text">Currency</span>
       </div>
-      <el-menu
-        :default-active="activeMenu"
-        :collapse="isCollapse"
-        :collapse-transition="false"
-        background-color="#2d1b2e"
-        text-color="#d4a8cf"
-        active-text-color="#fff"
-        router
-      >
-        <el-menu-item index="/exchange-rate">
-          <el-icon><Coin /></el-icon>
-          <template #title>实时汇率</template>
-        </el-menu-item>
-      </el-menu>
-      <!-- 底部可爱装饰 -->
+
+      <nav class="sidebar-nav">
+        <router-link to="/exchange-rate" class="nav-item" :class="{ active: isActive }">
+          <span class="nav-icon">📊</span>
+          <span v-show="!isCollapse" class="nav-label">实时汇率</span>
+        </router-link>
+      </nav>
+
       <div v-show="!isCollapse" class="sidebar-footer">
-        <span class="footer-deco">🌸</span>
-        <span class="footer-text">每日好心情~</span>
+        <span class="footer-dot"></span>
       </div>
     </aside>
 
     <!-- 主体 -->
     <div class="main-area">
-      <header class="navbar">
-        <div class="navbar-left">
-          <el-icon
-            class="collapse-btn"
-            :size="20"
-            @click="isCollapse = !isCollapse"
-          >
-            <Fold v-if="!isCollapse" />
-            <Expand v-else />
-          </el-icon>
-          <el-breadcrumb separator="💕">
-            <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
-            <el-breadcrumb-item>实时汇率</el-breadcrumb-item>
-          </el-breadcrumb>
+      <header class="topbar">
+        <div class="topbar-left">
+          <span class="topbar-title">实时汇率</span>
+          <span class="topbar-subtitle" v-if="lastUpdate">更新于 {{ lastUpdate }}</span>
         </div>
-        <div class="navbar-right">
-          <span class="update-time" v-if="lastUpdate">
-            <span class="pulse-dot" :class="{ pulsing }"></span>
-            {{ lastUpdate }}
-          </span>
+        <div class="topbar-right">
+          <span class="live-dot" :class="{ live: live }"></span>
+          <span class="live-text">{{ live ? '实时' : '等待' }}</span>
         </div>
       </header>
 
       <main class="content">
-        <router-view @update-time="onUpdateTime" @refresh-start="onRefreshStart" @refresh-end="onRefreshEnd" />
+        <div class="bg-blob blob-1"></div>
+        <div class="bg-blob blob-2"></div>
+        <router-view
+          @update-time="onUpdateTime"
+          @refresh-start="live=true"
+          @refresh-end="live=false"
+        />
       </main>
     </div>
   </div>
@@ -66,16 +52,11 @@ import { useRoute } from 'vue-router'
 const route = useRoute()
 const isCollapse = ref(false)
 const lastUpdate = ref('')
-const pulsing = ref(false)
+const live = ref(false)
 
-const activeMenu = computed(() => route.path)
+const isActive = computed(() => route.path.startsWith('/exchange-rate'))
 
-function onUpdateTime(time) {
-  lastUpdate.value = time
-}
-
-function onRefreshStart() { pulsing.value = true }
-function onRefreshEnd() { pulsing.value = false }
+function onUpdateTime(t) { lastUpdate.value = t }
 </script>
 
 <style lang="scss" scoped>
@@ -87,71 +68,87 @@ function onRefreshEnd() { pulsing.value = false }
 
 /* === 侧边栏 === */
 .sidebar {
-  width: 220px;
-  min-width: 220px;
-  background: var(--pink-dark);
-  transition: width 0.3s, min-width 0.3s;
+  width: 200px;
+  min-width: 200px;
+  background: var(--bg-sidebar);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  padding: 0 8px;
+  transition: width .3s var(--ease-out), min-width .3s var(--ease-out);
+  user-select: none;
+  -webkit-user-select: none;
 
   &.collapsed {
-    width: 64px;
-    min-width: 64px;
+    width: 60px;
+    min-width: 60px;
   }
+}
 
-  .logo {
-    height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    color: #fff;
-    font-size: 18px;
+.sidebar-logo {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  margin-bottom: 12px;
+  transition: opacity .2s;
+
+  &:hover { opacity: .8 }
+
+  .logo-icon { font-size: 22px; line-height: 1 }
+  .logo-text {
+    font-size: 14px;
     font-weight: 700;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    letter-spacing: 1px;
+    color: var(--text-inverse);
+    letter-spacing: .02em;
+    white-space: nowrap;
+  }
+}
 
-    .logo-emoji { font-size: 24px; line-height: 1; }
-    .logo-text { white-space: nowrap; }
+.sidebar-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  color: rgba(255,255,255,.7);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+
+  .nav-icon { font-size: 18px; line-height: 1 }
+  .nav-label { white-space: nowrap }
+
+  &:hover {
+    background: rgba(255,255,255,.08);
+    color: #fff;
   }
 
-  :deep(.el-menu) {
-    border-right: none;
-    user-select: none;
-    flex: 1;
-
-    .el-menu-item {
-      border-radius: 12px;
-      margin: 4px 10px;
-      width: auto;
-      transition: all 0.3s ease;
-
-      &:hover {
-        background: rgba(255, 107, 157, 0.15) !important;
-      }
-      &.is-active {
-        background: linear-gradient(135deg, #ff6b9d, #f472b6) !important;
-      }
-    }
-
-    .el-sub-menu__title:hover {
-      background: rgba(255, 107, 157, 0.1) !important;
-    }
+  &.active {
+    background: rgba(255,255,255,.12);
+    color: #fff;
   }
+}
 
-  .sidebar-footer {
-    padding: 16px;
-    text-align: center;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+.sidebar-footer {
+  padding: 16px;
+  text-align: center;
 
-    .footer-deco { font-size: 20px; display: block; }
-    .footer-text {
-      font-size: 12px;
-      color: rgba(255, 255, 255, 0.4);
-      margin-top: 4px;
-      display: block;
-    }
+  .footer-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.2);
   }
 }
 
@@ -161,61 +158,96 @@ function onRefreshEnd() { pulsing.value = false }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--bg-main);
+  background: var(--bg-primary);
+  position: relative;
 }
 
 /* === 顶栏 === */
-.navbar {
-  height: 56px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--pink-200);
+.topbar {
+  height: 52px;
+  background: rgba(242,242,247,.8);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(0,0,0,.06);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
 
-  .navbar-left {
+  .topbar-left {
     display: flex;
-    align-items: center;
-    gap: 16px;
+    align-items: baseline;
+    gap: 10px;
   }
 
-  .collapse-btn {
-    cursor: pointer;
-    color: var(--pink-500);
-    &:hover { color: var(--pink-600); }
+  .topbar-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -.02em;
   }
 
-  .navbar-right { display: flex; align-items: center; gap: 12px; }
+  .topbar-subtitle {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-weight: 500;
+  }
 
-  .update-time {
+  .topbar-right {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 13px;
-    color: var(--text-secondary);
   }
 
-  .pulse-dot {
-    width: 8px;
-    height: 8px;
+  .live-dot {
+    width: 7px; height: 7px;
     border-radius: 50%;
-    background: #67c23a;
-    transition: transform 0.3s;
-    &.pulsing { animation: pulse 0.6s ease-in-out; }
+    background: var(--text-tertiary);
+    transition: background .3s;
+
+    &.live { background: var(--color-green); animation: pulse-dot 2s ease-in-out infinite }
+  }
+
+  .live-text {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-weight: 500;
   }
 }
 
-@keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.8); opacity: 0.4; }
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(48,209,88,.4) }
+  50% { box-shadow: 0 0 0 6px rgba(48,209,88,0) }
 }
 
 /* === 内容 === */
 .content {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: 20px 24px;
+  position: relative;
+  z-index: 1;
+}
+
+/* === 背景装饰球 === */
+.bg-blob {
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+.blob-1 {
+  top: -120px;
+  right: -80px;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(0,122,255,.07) 0%, transparent 70%);
+}
+.blob-2 {
+  bottom: -60px;
+  left: -60px;
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(175,82,222,.05) 0%, transparent 70%);
 }
 </style>
