@@ -55,8 +55,8 @@
           <div class="conv-info">
             <div class="conv-label">{{ currency.code }}/CNY</div>
             <div class="conv-items">
-              <span class="conv-item">1 {{ currency.code }} = <strong>{{ rates[currency.code]?.toFixed(currency.code === 'JPY' ? 4 : 4) || '--' }}</strong> CNY</span>
-              <span class="conv-item">100 CNY = <strong>{{ rates[currency.code] ? (100 / rates[currency.code]).toFixed(2) : '--' }}</strong> {{ currency.code }}</span>
+              <span class="conv-item">{{ currency.unit }} {{ currency.code }} = <strong>{{ rates[currency.code]?.toFixed(4) || '--' }}</strong> CNY</span>
+              <span class="conv-item">100 CNY = <strong>{{ rates[currency.code] ? (100 / rates[currency.code] * currency.unit).toFixed(2) : '--' }}</strong> {{ currency.code }}</span>
             </div>
           </div>
         </div>
@@ -122,7 +122,7 @@ function updateRates(data) {
     // 先用旧值对比
     if (rates[cur.code] && prevRates[cur.code]) {
       const oldRate = prevRates[cur.code]
-      const newRate = calculateRate(cnyRates, cur.code)
+      const newRate = calculateRate(cnyRates, cur.code, cur.unit)
       if (oldRate && newRate) {
         changes[cur.code] = parseFloat(((newRate - oldRate) / oldRate * 100).toFixed(2))
       }
@@ -131,7 +131,7 @@ function updateRates(data) {
     prevRates[cur.code] = rates[cur.code]
 
     // 更新新值
-    const rate = calculateRate(cnyRates, cur.code)
+    const rate = calculateRate(cnyRates, cur.code, cur.unit)
     if (rate) {
       rates[cur.code] = rate
       hasError[cur.code] = false

@@ -21,6 +21,7 @@
       <!-- Normal state -->
       <template v-else-if="rate !== null">
         <div class="rate-value">
+          <span v-if="currency.unit > 1" class="rate-unit">{{ currency.unit }}</span>
           <span class="rate-symbol">{{ currency.symbol }}</span>
           <span class="rate-number">{{ formattedRate }}</span>
           <span class="rate-label"> CNY</span>
@@ -51,10 +52,6 @@ const props = defineProps({
 
 const formattedRate = computed(() => {
   if (props.rate === null) return '--'
-  if (props.currency.code === 'JPY') {
-    // JPY 显示更多小数
-    return props.rate.toFixed(4)
-  }
   return props.rate.toFixed(4)
 })
 
@@ -141,6 +138,13 @@ const changeClass = computed(() => {
       display: flex;
       align-items: baseline;
       gap: 2px;
+
+      .rate-unit {
+        font-size: 16px;
+        color: #909399;
+        font-weight: 500;
+        margin-right: 2px;
+      }
 
       .rate-symbol {
         font-size: 18px;
