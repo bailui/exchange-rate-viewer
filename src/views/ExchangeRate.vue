@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <!-- 每日鼓励 -->
-    <div class="encourage glass">
+    <div class="encourage">
       <span class="enc-emoji">{{ msg.emoji }}</span>
       <div>
         <div class="enc-text">{{ msg.text }}</div>
@@ -12,33 +12,45 @@
     <!-- 计算器 -->
     <CurrencyConverter />
 
-    <!-- 汇率标题 -->
+    <!-- 热门汇率 -->
     <div class="section-head">
-      <h2>实时汇率</h2>
+      <h2>🔥 热门汇率</h2>
       <button class="rf-btn" :class="{ spin: refreshing }" @click="refreshRates">🔄</button>
     </div>
 
-    <!-- 卡片 -->
-    <div class="bento">
-      <RateCard
-        v-for="(c,i) in focusCurrencies" :key="c.code"
-        :currency="c" :rate="rates[c.code]"
-        :change-percent="changes[c.code]||0"
-        :loading="loading && !rates[c.code]"
-        :error="hasError[c.code]"
-        :delay="60 + i*50"
-        :history="histories[c.code]||[]"
-      />
+    <div class="hot-grid">
+      <div v-for="(c,i) in hotCurrencies" :key="c.code" class="rate-item"
+        :style="{ animationDelay: i*30+'ms' }">
+        <span class="ri-flag">{{ c.flag }}</span>
+        <div class="ri-info">
+          <div class="ri-code">{{ c.code }} <span class="ri-name">{{ c.name }}</span></div>
+          <div class="ri-rate">
+            <span v-if="c.unit>1" class="ri-unit">{{ c.unit }}</span>
+            {{ c.rate?.toFixed(4) || '--' }}
+            <span class="ri-cny">CNY</span>
+          </div>
+        </div>
+        <div class="ri-spark" v-if="sparkData[c.code]?.length >= 2">
+          <Sparkline :data="sparkData[c.code]" :color="c.color" />
+        </div>
+      </div>
     </div>
 
-    <!-- 快捷换算 -->
-    <div class="quick glass">
-      <h3>快捷换算</h3>
-      <div class="quick-grid">
-        <div v-for="c in focusCurrencies" :key="c.code" class="quick-item">
-          <span class="qf">{{ c.flag }}</span>
-          <span>{{ c.unit }} {{ c.code }} = <b>{{ rates[c.code]?.toFixed(4)||'--' }}</b> CNY</span>
-        </div>
+    <!-- 全部币种 -->
+    <div class="section-head">
+      <h2>🌍 全部币种</h2>
+      <span class="count">{{ allCurrencies.length }} 种</span>
+    </div>
+
+    <div class="all-grid">
+      <div v-for="c in allCurrencies" :key="c.code" class="all-item">
+        <span class="ai-flag">{{ c.flag }}</span>
+        <span class="ai-code">{{ c.code }}</span>
+        <span class="ai-name">{{ c.name }}</span>
+        <span class="ai-rate">
+          <template v-if="c.unit>1">{{ c.unit }}</template>
+          {{ c.rate?.toFixed(4) || '--' }}
+        </span>
       </div>
     </div>
   </div>
@@ -46,143 +58,128 @@
 
 <script setup>
 import { ref,reactive,onMounted,onUnmounted,computed } from 'vue'
-import { fetchLiveRates,FOCUS_CURRENCIES,calculateRate,fetchHistory,getCNYHistory } from '../api/exchangeRate.js'
-import RateCard from '../components/RateCard.vue'
+import { fetchLiveRates,buildCurrencyList,fetchHistory,getCNYHistory,HOT_CURRENCIES,CURRENCY_META } from '../api/exchangeRate.js'
 import CurrencyConverter from '../components/CurrencyConverter.vue'
+import Sparkline from '../components/Sparkline.vue'
 
 const emit = defineEmits(['updateTime','refreshStart','refreshEnd'])
-const focusCurrencies = FOCUS_CURRENCIES
-const rates=reactive({}), changes=reactive({}), hasError=reactive({}), histories=reactive({})
-const loading=ref(true), refreshing=ref(false), prevRates=reactive({})
-let timer=null; const INT=30_000
+const loading=ref(true), refreshing=ref(false)
+const rawRates=reactive({})
+const sparkData=reactive({})
 
 const today = computed(()=>`${new Date().getMonth()+1}月${new Date().getDate()}日`)
+const msgs=[{emoji:'🌸',text:'每一天都是全新的开始，今天的你比昨天更棒'},{emoji:'💖',text:'有人在偷偷关心你，记得好好照顾自己'},{emoji:'✨',text:'做颗星星，有棱有角，还会发光'},{emoji:'🦌',text:'小鹿乱撞的不只是心跳，还有对你的喜欢'},{emoji:'🌈',text:'生活起起落落，但总会越来越好'},{emoji:'💎',text:'压力是暂时的，但你是钻石闪闪发光'},{emoji:'🌙',text:'晚安前记得微笑，今天你做得很好'},{emoji:'☀️',text:'新的一天，新的汇率，新的好运气'},{emoji:'🦋',text:'做自己喜欢的事，成为自己想成为的人'},{emoji:'🎀',text:'今天也要元气满满哦'},{emoji:'🍀',text:'好运总是偏爱努力又善良的人'},{emoji:'🌟',text:'你值得所有美好，因为你就是美好本身'},{emoji:'🧸',text:'做一只快乐的小熊软糖'},{emoji:'💐',text:'送你一束花，愿你今天好心情'},{emoji:'🐰',text:'蹦蹦跳跳，快快乐乐'}]
+const msg=computed(()=>msgs[new Date().getDate()%msgs.length])
 
-const msgs = [
-  {emoji:'🌌',text:'每一天都是全新的汇率，也是全新的你'},
-  {emoji:'💫',text:'宇宙那么大，相遇本身就是奇迹'},
-  {emoji:'✨',text:'做颗星星，有棱有角，还会发光'},
-  {emoji:'🌸',text:'你笑起来真好看'},
-  {emoji:'🦌',text:'小鹿乱撞的不只是心跳'},
-  {emoji:'🌈',text:'生活起起落落，但总会越来越好'},
-  {emoji:'💎',text:'压力是暂时的，你是闪闪发光的'},
-  {emoji:'🌙',text:'晚安前记得微笑'},
-  {emoji:'☀️',text:'新的一天，新的好运气'},
-  {emoji:'🦋',text:'做自己喜欢的事'},
-  {emoji:'🎀',text:'今天也要元气满满'},
-  {emoji:'🍀',text:'好运偏爱努力又善良的人'},
-  {emoji:'💖',text:'有人在偷偷关心你'},
-  {emoji:'🌟',text:'你值得所有美好'},
-  {emoji:'🧸',text:'做一只快乐的小熊软糖'},
-  {emoji:'🌺',text:'温柔是宝藏，你也是'},
-  {emoji:'🐣',text:'慢慢来，谁不是翻山越岭去爱'},
-  {emoji:'🫧',text:'烦恼都吹进泡泡里飘走'},
-  {emoji:'🐰',text:'蹦蹦跳跳，快快乐乐'},
-  {emoji:'🌻',text:'只要心中有光，走到哪里都是晴天'},
-  {emoji:'💐',text:'送你一束花，愿你今天好心情'},
-  {emoji:'🎵',text:'生活给你柠檬，就加点糖'},
-  {emoji:'🍰',text:'辛苦啦，奖励自己一块小蛋糕'},
-  {emoji:'🕊️',text:'让风带走烦恼'},
-  {emoji:'🍬',text:'生活有点苦，来颗糖甜甜嘴'},
-  {emoji:'💕',text:'先爱自己，再爱世界'},
-  {emoji:'🌿',text:'深呼吸，一切都会好起来'},
-  {emoji:'🦢',text:'从容面对每一天'},
-  {emoji:'💗',text:'记得按时吃饭好好休息'},
-  {emoji:'🌷',text:'像春天里最温柔的风'},
-]
-const msg = computed(()=>msgs[new Date().getDate() % msgs.length])
+const hotCurrencies=computed(()=>{
+  const list=buildCurrencyList(rawRates)
+  return list.filter(c=>HOT_CURRENCIES.includes(c.code))
+})
 
-// 加载 7 天历史用于迷你趋势图
-async function loadSparkHistory() {
-  try {
-    const data = await fetchHistory(7)
-    focusCurrencies.forEach(c => {
-      const vals = getCNYHistory(data, c.code)
-      if (vals.length >= 2) histories[c.code] = vals
+const allCurrencies=computed(()=>{
+  const list=buildCurrencyList(rawRates)
+  return list.filter(c=>c.code!=='CNY' && !HOT_CURRENCIES.includes(c.code))
+})
+
+async function loadSpark(){
+  try{
+    const data=await fetchHistory(7)
+    HOT_CURRENCIES.forEach(code=>{
+      const vals=getCNYHistory(data,code)
+      if(vals.length>=2) sparkData[code]=vals
     })
-  } catch(e) { console.error(e) }
+  }catch(e){}
 }
 
 async function refreshRates(){
   refreshing.value=true; emit('refreshStart')
   try{
     const d=await fetchLiveRates()
-    const r=d.rates; if(!r) return
-    focusCurrencies.forEach(c=>{
-      if(rates[c.code]&&prevRates[c.code]){
-        const o=prevRates[c.code], n=calculateRate(r,c.code,c.unit)
-        if(o&&n) changes[c.code]=+((n-o)/o*100).toFixed(2)
-      }
-      prevRates[c.code]=rates[c.code]
-      const rate=calculateRate(r,c.code,c.unit)
-      if(rate) rates[c.code]=rate
-      else hasError[c.code]=true
-    })
-    emit('updateTime', new Date().toLocaleTimeString('zh-CN',{hour12:false}))
+    Object.assign(rawRates, d.rates||{})
     loading.value=false
-  } catch(e){ console.error(e) }
+    emit('updateTime', new Date().toLocaleTimeString('zh-CN',{hour12:false}))
+  }catch(e){}
   finally{ refreshing.value=false; emit('refreshEnd') }
 }
 
 onMounted(async()=>{
-  await Promise.all([refreshRates(), loadSparkHistory()])
-  timer=setInterval(refreshRates,INT)
+  await Promise.all([refreshRates(),loadSpark()])
+  setInterval(refreshRates,30000)
 })
-onUnmounted(()=>clearInterval(timer))
 </script>
 
 <style lang="scss" scoped>
-.page { max-width:1400px; margin:0 auto; padding-top:16px }
+.page { max-width:1400px; margin:0 auto }
 
 .encourage {
-  border-radius:var(--radius-lg); padding:16px 20px; margin-bottom:16px;
-  display:flex; align-items:center; gap:14px;
-  animation:fadeUp .5s var(--ease-out) both;
-  .enc-emoji { font-size:30px; flex-shrink:0 }
-  .enc-text { font-size:15px; font-weight:600; line-height:1.5 }
-  .enc-from { font-size:12px; color:var(--text-muted); margin-top:4px }
+  background: linear-gradient(135deg, var(--pink-ll), #fff0f5);
+  border-radius:var(--r-lg); padding:16px 20px; margin-bottom:16px;
+  display:flex; align-items:center; gap:14px; border:1px solid var(--border);
+  .enc-emoji { font-size:30px }
+  .enc-text { font-size:15px; font-weight:600; color:var(--text) }
+  .enc-from { font-size:12px; color:var(--text3); margin-top:4px }
 }
 
 .section-head {
   display:flex; align-items:center; justify-content:space-between;
-  margin:18px 0 12px;
-  animation:fadeUp .5s var(--ease-out) .1s both;
-  h2 { font-size:16px; font-weight:800 }
+  margin:18px 0 10px;
+  h2 { font-size:15px; font-weight:800 }
+  .count { font-size:12px; color:var(--text3); font-weight:500 }
 }
+
 .rf-btn {
   width:32px; height:32px; border-radius:50%;
-  border:1px solid var(--border-subtle); background:transparent;
-  cursor:pointer; font-size:14px; color:var(--text-secondary);
-  display:flex; align-items:center; justify-content:center;
-  transition:all .3s;
-  &:hover { border-color:rgba(255,255,255,.2); background:rgba(255,255,255,.05) }
+  border:1px solid var(--border); background:var(--bg-card); cursor:pointer;
+  font-size:14px; transition:all .3s;
+  &:hover { border-color:var(--pink); background:var(--pink-ll) }
   &.spin { animation:spin .8s linear infinite }
 }
 @keyframes spin { to{transform:rotate(360deg)} }
 
-.bento {
-  display:grid;
+/* 热门 */
+.hot-grid {
+  display:grid; gap:8px;
   grid-template-columns:repeat(2,1fr);
-  gap:10px; margin-bottom:18px;
-  @media (min-width:768px) { grid-template-columns:repeat(3,1fr) }
-  @media (min-width:1100px) { grid-template-columns:repeat(5,1fr) }
+  @media(min-width:600px){ grid-template-columns:repeat(3,1fr) }
+  @media(min-width:900px){ grid-template-columns:repeat(4,1fr) }
 }
 
-.quick {
-  border-radius:var(--radius-lg); padding:20px 24px; margin-bottom:24px;
-  animation:fadeUp .5s var(--ease-out) .4s both;
-  h3 { font-size:14px; font-weight:700; margin-bottom:14px }
+.rate-item {
+  background:var(--bg-card); border:1px solid var(--border);
+  border-radius:var(--r-md); padding:14px 16px;
+  display:flex; align-items:center; gap:10px;
+  animation:fadeUp .4s var(--ease) both;
+  transition:all .2s;
+  &:hover { box-shadow:var(--shadow); border-color:var(--pink-l) }
+
+  .ri-flag { font-size:28px; line-height:1; flex-shrink:0 }
+  .ri-info { flex:1; min-width:0 }
+  .ri-code { font-size:13px; font-weight:700 }
+  .ri-name { font-size:10px; color:var(--text3); font-weight:400 }
+  .ri-rate { font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:2px }
+  .ri-unit { font-size:11px; color:var(--text3); font-weight:500 }
+  .ri-cny { font-size:11px; color:var(--text3); font-weight:400; margin-left:2px }
+  .ri-spark { margin-top:4px; min-width:80px }
 }
-.quick-grid {
-  display:grid;
-  grid-template-columns:repeat(2,1fr); gap:6px 16px;
-  @media (min-width:600px) { grid-template-columns:repeat(3,1fr) }
-  @media (min-width:900px) { grid-template-columns:repeat(5,1fr) }
+
+/* 全部 */
+.all-grid {
+  display:grid; gap:4px;
+  grid-template-columns:repeat(2,1fr);
+  @media(min-width:500px){ grid-template-columns:repeat(3,1fr) }
+  @media(min-width:768px){ grid-template-columns:repeat(4,1fr) }
+  @media(min-width:1100px){ grid-template-columns:repeat(5,1fr) }
 }
-.quick-item {
-  display:flex; align-items:center; gap:6px; font-size:12px; padding:4px 0;
-  color:var(--text-secondary);
-  .qf { font-size:15px }
-  b { color:var(--text-primary); font-weight:600 }
+
+.all-item {
+  display:flex; align-items:center; gap:6px;
+  padding:7px 10px; border-radius:var(--r-sm);
+  font-size:12px; transition:background .15s;
+  &:hover { background:var(--pink-ll) }
+
+  .ai-flag { font-size:16px; width:22px; text-align:center }
+  .ai-code { font-weight:600; color:var(--text); width:36px }
+  .ai-name { color:var(--text3); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+  .ai-rate { font-weight:600; font-variant-numeric:tabular-nums; color:var(--text2); flex-shrink:0 }
 }
 </style>

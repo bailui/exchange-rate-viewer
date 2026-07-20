@@ -48,9 +48,9 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { FOCUS_CURRENCIES } from '../api/exchangeRate.js'
+import { HOT_CURRENCIES, CURRENCY_META } from '../api/exchangeRate.js'
 
-const currencies = FOCUS_CURRENCIES
+const currencies = HOT_CURRENCIES.map(code => ({ code, ...CURRENCY_META[code] || {name:code,flag:'💱',symbol:'',color:'#c4a8b4'} }))
 const alerts = reactive([])
 
 const newAlert = reactive({ from: 'USD', to: 'CNY', direction: 'above', target: 7.0 })

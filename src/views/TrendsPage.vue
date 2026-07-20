@@ -49,7 +49,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { FOCUS_CURRENCIES, fetchHistory, getCNYHistory } from '../api/exchangeRate.js'
+import { fetchHistory, getCNYHistory, HOT_CURRENCIES, CURRENCY_META } from '../api/exchangeRate.js'
 import Sparkline from '../components/Sparkline.vue'
 
 const ranges = [
@@ -73,7 +73,8 @@ async function loadRange(days) {
 
   try {
     const data = await fetchHistory(days)
-    FOCUS_CURRENCIES.forEach(c => {
+    HOT_CURRENCIES.forEach(code => {
+      const c = { code, ...CURRENCY_META[code] || {name:code,flag:'💱',symbol:'',color:'#c4a8b4'} }
       const values = getCNYHistory(data, c.code)
       if (values.length < 2) return
 

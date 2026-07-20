@@ -52,9 +52,9 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { FOCUS_CURRENCIES, fetchLiveRates } from '../api/exchangeRate.js'
+import { fetchLiveRates, buildCurrencyList, HOT_CURRENCIES, CURRENCY_META } from '../api/exchangeRate.js'
 
-const currencies = FOCUS_CURRENCIES
+const currencies = HOT_CURRENCIES.map(code => ({ code, ...CURRENCY_META[code] || {name:code,flag:'💱',symbol:'',color:'#c4a8b4'} }))
 const amount = ref(100)
 const fromCurrency = ref('USD')
 const toCurrency = ref('CNY')
