@@ -1,4 +1,25 @@
-/* === 全局样式 === */
+/* === 🌸 粉色可爱主题 === */
+:root {
+  --pink-100: #fff0f5;
+  --pink-200: #ffe0eb;
+  --pink-300: #ffb3c6;
+  --pink-400: #ff8fab;
+  --pink-500: #ff6b9d;
+  --pink-600: #e85d8a;
+  --pink-700: #d44a78;
+  --pink-dark: #2d1b2e;
+  --pink-darker: #1e1220;
+  --bg-main: #fff5f7;
+  --bg-card: #ffffff;
+  --text-primary: #3d2c3a;
+  --text-secondary: #9e8a98;
+  --shadow-soft: 0 4px 20px rgba(255, 107, 157, 0.12);
+  --shadow-card: 0 6px 24px rgba(255, 107, 157, 0.08);
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -10,43 +31,55 @@ html, body {
   font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: #303133;
-  background: #f5f7fa;
+  color: var(--text-primary);
+  background: var(--bg-main);
 }
 
 #app {
   height: 100%;
 }
 
-/* === 滚动条美化 === */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: #c0c4cc;
+  background: var(--pink-300);
   border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--pink-400); }
 
-  &:hover {
-    background: #909399;
-  }
+/* Element Plus 粉色覆盖 */
+:root {
+  --el-color-primary: #ff6b9d;
+  --el-color-primary-light-3: #ff9eb5;
+  --el-color-primary-light-5: #ffb3c6;
+  --el-color-primary-light-7: #ffd4e0;
+  --el-color-primary-light-9: #fff0f5;
 }
 
-/* === Element Plus 覆盖 === */
-.el-menu-item.is-active {
+.el-button--primary {
+  --el-button-bg-color: #ff6b9d;
+  --el-button-border-color: #ff6b9d;
+  --el-button-hover-bg-color: #ff85a2;
+  --el-button-hover-border-color: #ff85a2;
+  --el-button-active-bg-color: #e85d8a;
+  border-radius: 50px !important;
   font-weight: 600;
+  box-shadow: 0 4px 14px rgba(255, 107, 157, 0.3);
+  transition: all 0.3s ease;
+}
+.el-button--primary:hover {
+  box-shadow: 0 6px 20px rgba(255, 107, 157, 0.4);
+  transform: translateY(-1px);
 }
 
-.el-breadcrumb__inner {
-  color: #606266 !important;
-  font-weight: 400 !important;
+.el-menu {
+  border-right: none !important;
 }
-.el-breadcrumb__item:last-child .el-breadcrumb__inner {
-  color: #303133 !important;
-  font-weight: 500 !important;
+.el-menu-item.is-active {
+  border-radius: 12px !important;
+  margin: 4px 10px !important;
+  width: auto !important;
+}
+.el-tag {
+  border-radius: 50px !important;
 }

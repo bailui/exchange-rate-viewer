@@ -1,17 +1,17 @@
 <template>
   <div class="app-layout">
-    <!-- 侧边栏 — RuoYi 风格 -->
+    <!-- 侧边栏 — 粉色可爱风 -->
     <aside class="sidebar" :class="{ collapsed: isCollapse }">
       <div class="logo">
-        <el-icon :size="28"><Money /></el-icon>
-        <span v-show="!isCollapse" class="logo-text">汇率监控</span>
+        <span class="logo-emoji">💱</span>
+        <span v-show="!isCollapse" class="logo-text">汇率小助手</span>
       </div>
       <el-menu
         :default-active="activeMenu"
         :collapse="isCollapse"
         :collapse-transition="false"
-        background-color="#1d1e2c"
-        text-color="#a6adc8"
+        background-color="#2d1b2e"
+        text-color="#d4a8cf"
         active-text-color="#fff"
         router
       >
@@ -20,11 +20,15 @@
           <template #title>实时汇率</template>
         </el-menu-item>
       </el-menu>
+      <!-- 底部可爱装饰 -->
+      <div v-show="!isCollapse" class="sidebar-footer">
+        <span class="footer-deco">🌸</span>
+        <span class="footer-text">每日好心情~</span>
+      </div>
     </aside>
 
     <!-- 主体 -->
     <div class="main-area">
-      <!-- 顶栏 -->
       <header class="navbar">
         <div class="navbar-left">
           <el-icon
@@ -35,22 +39,21 @@
             <Fold v-if="!isCollapse" />
             <Expand v-else />
           </el-icon>
-          <el-breadcrumb separator="/">
+          <el-breadcrumb separator="💕">
             <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
             <el-breadcrumb-item>实时汇率</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
         <div class="navbar-right">
           <span class="update-time" v-if="lastUpdate">
-            <el-icon><Timer /></el-icon>
+            <span class="pulse-dot" :class="{ pulsing }"></span>
             {{ lastUpdate }}
           </span>
         </div>
       </header>
 
-      <!-- 内容 -->
       <main class="content">
-        <router-view @update-time="onUpdateTime" />
+        <router-view @update-time="onUpdateTime" @refresh-start="onRefreshStart" @refresh-end="onRefreshEnd" />
       </main>
     </div>
   </div>
@@ -63,12 +66,16 @@ import { useRoute } from 'vue-router'
 const route = useRoute()
 const isCollapse = ref(false)
 const lastUpdate = ref('')
+const pulsing = ref(false)
 
 const activeMenu = computed(() => route.path)
 
 function onUpdateTime(time) {
   lastUpdate.value = time
 }
+
+function onRefreshStart() { pulsing.value = true }
+function onRefreshEnd() { pulsing.value = false }
 </script>
 
 <style lang="scss" scoped>
@@ -82,7 +89,7 @@ function onUpdateTime(time) {
 .sidebar {
   width: 220px;
   min-width: 220px;
-  background: #1d1e2c;
+  background: var(--pink-dark);
   transition: width 0.3s, min-width 0.3s;
   display: flex;
   flex-direction: column;
@@ -94,36 +101,56 @@ function onUpdateTime(time) {
   }
 
   .logo {
-    height: 56px;
+    height: 60px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 8px;
     color: #fff;
     font-size: 18px;
     font-weight: 700;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     letter-spacing: 1px;
 
-    .logo-text {
-      white-space: nowrap;
-    }
+    .logo-emoji { font-size: 24px; line-height: 1; }
+    .logo-text { white-space: nowrap; }
   }
 
   :deep(.el-menu) {
     border-right: none;
     user-select: none;
+    flex: 1;
+
+    .el-menu-item {
+      border-radius: 12px;
+      margin: 4px 10px;
+      width: auto;
+      transition: all 0.3s ease;
+
+      &:hover {
+        background: rgba(255, 107, 157, 0.15) !important;
+      }
+      &.is-active {
+        background: linear-gradient(135deg, #ff6b9d, #f472b6) !important;
+      }
+    }
+
+    .el-sub-menu__title:hover {
+      background: rgba(255, 107, 157, 0.1) !important;
+    }
   }
 
-  :deep(.el-menu-item) {
-    &:hover {
-      background: rgba(255, 255, 255, 0.05) !important;
-    }
-    &.is-active {
-      background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
-      border-radius: 6px;
-      margin: 4px 8px;
-      width: auto;
+  .sidebar-footer {
+    padding: 16px;
+    text-align: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+
+    .footer-deco { font-size: 20px; display: block; }
+    .footer-text {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.4);
+      margin-top: 4px;
+      display: block;
     }
   }
 }
@@ -134,19 +161,19 @@ function onUpdateTime(time) {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #f5f7fa;
+  background: var(--bg-main);
 }
 
 /* === 顶栏 === */
 .navbar {
   height: 56px;
-  background: #fff;
-  border-bottom: 1px solid #e4e7ed;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--pink-200);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  padding: 0 24px;
 
   .navbar-left {
     display: flex;
@@ -156,28 +183,36 @@ function onUpdateTime(time) {
 
   .collapse-btn {
     cursor: pointer;
-    color: #606266;
-    &:hover {
-      color: #3b82f6;
-    }
+    color: var(--pink-500);
+    &:hover { color: var(--pink-600); }
   }
 
-  .navbar-right {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
+  .navbar-right { display: flex; align-items: center; gap: 12px; }
 
   .update-time {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     font-size: 13px;
-    color: #909399;
+    color: var(--text-secondary);
+  }
+
+  .pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #67c23a;
+    transition: transform 0.3s;
+    &.pulsing { animation: pulse 0.6s ease-in-out; }
   }
 }
 
-/* === 内容区 === */
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.8); opacity: 0.4; }
+}
+
+/* === 内容 === */
 .content {
   flex: 1;
   overflow-y: auto;
