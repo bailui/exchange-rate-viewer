@@ -1,174 +1,222 @@
 <template>
-  <div class="max-w-6xl mx-auto">
-    <!-- 欢迎语 -->
-    <div class="mb-6">
-      <h1 class="text-xl font-extrabold text-[var(--color-text)] tracking-tight">实时汇率</h1>
-      <p class="text-sm text-[var(--color-text-soft)] mt-1">今天也要关注全球汇率变化呀 💕</p>
+  <div class="max-w-[1440px] mx-auto">
+    <!-- 页面标题 -->
+    <div class="flex flex-col md:flex-row md:items-end md:justify-between mb-5 gap-3">
+      <div>
+        <h1 class="text-xl font-extrabold text-[var(--color-text)] tracking-tight">实时汇率</h1>
+        <p class="text-sm text-[var(--color-text-soft)] mt-1">掌握全球主要货币的实时变化</p>
+      </div>
+      <div class="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
+        <span v-if="lastTime">更新于 {{ lastTime }}</span>
+        <button @click="refreshRates" class="w-8 h-8 rounded-full border border-[var(--color-border)] bg-white flex items-center justify-center text-sm hover:bg-[var(--color-bg-soft)] hover:text-[var(--color-primary)] transition-colors" :class="{ 'animate-spin': refreshing }" :disabled="refreshing">🔄</button>
+      </div>
     </div>
 
     <!-- 统计卡片 -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-      <div v-for="s in stats" :key="s.label" class="stat-card" :class="s.bg">
+      <div v-for="stat in stats" :key="stat.label" class="stat-card">
         <div>
-          <div class="text-2xl font-extrabold text-[var(--color-text)]">{{ s.value }}</div>
-          <div class="text-xs text-[var(--color-text-soft)] mt-0.5">{{ s.label }}</div>
+          <div class="text-[22px] font-extrabold text-[var(--color-text)] leading-none">{{ stat.value }}</div>
+          <div class="text-[11px] text-[var(--color-text-soft)] mt-1 font-medium">{{ stat.label }}</div>
         </div>
-        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg" :class="s.iconBg">{{ s.icon }}</div>
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0" :class="stat.bg">{{ stat.icon }}</div>
       </div>
     </div>
 
-    <!-- 换算器 -->
-    <div class="bg-white rounded-[var(--radius-card)] p-5 md:p-6 border border-pink-100/80 shadow-sm mb-5">
+    <!-- 换算卡片 -->
+    <div class="bg-white rounded-[var(--radius-card)] p-5 md:p-6 border border-[var(--color-border)] shadow-[var(--shadow-card)] mb-5">
       <div class="flex items-center gap-2 mb-4">
-        <span class="text-base">🧮</span>
-        <h3 class="text-base font-bold text-[var(--color-text)]">汇率换算器</h3>
-        <span class="text-[10px] font-semibold text-pink-500 bg-pink-50 px-2 py-0.5 rounded-full">实时</span>
+        <span class="text-base">🧮</span><h3 class="text-base font-bold text-[var(--color-text)]">快速换算</h3>
+        <span class="text-[10px] font-semibold text-white bg-[var(--color-primary)] px-2 py-0.5 rounded-full">实时</span>
       </div>
 
-      <div class="flex flex-col md:flex-row items-stretch md:items-end gap-2.5 mb-3">
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-end gap-2 mb-3">
         <div class="flex-1">
-          <label class="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5 block">持有货币</label>
-          <div class="flex items-center h-12 rounded-[var(--radius-input)] border border-pink-200 bg-pink-50/50 px-3 focus-within:border-pink-400 focus-within:ring-3 focus-within:ring-pink-100 transition-all">
-            <input v-model.number="amount" type="number" min="0" class="flex-1 bg-transparent outline-none text-lg font-bold text-[var(--color-text)] placeholder:text-pink-200 font-[inherit]" placeholder="0" />
-            <span class="text-sm font-bold text-pink-500 ml-1">{{ fromCurrency }}</span>
+          <label class="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5 block">持有金额</label>
+          <div class="input-box">
+            <input v-model.number="convAmount" type="number" min="0" class="flex-1 bg-transparent outline-none text-lg font-bold text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]" placeholder="0" />
+            <span class="text-sm font-bold text-[var(--color-primary)] ml-2 flex-shrink-0">{{ convFrom }}</span>
           </div>
         </div>
-
-        <button @click="swapCurrencies" class="w-10 h-10 rounded-full border border-pink-200 bg-white flex items-center justify-center text-pink-500 hover:bg-pink-500 hover:text-white hover:border-pink-500 transition-all duration-200 shrink-0 self-center md:self-end md:mb-0.5">⇄</button>
-
+        <button @click="swapConv" class="swap-btn">⇄</button>
         <div class="flex-1">
           <label class="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5 block">兑换结果</label>
-          <div class="flex items-center h-12 rounded-[var(--radius-input)] border border-pink-200 bg-pink-50/30 px-3">
-            <span class="text-lg font-extrabold text-pink-600 flex-1">{{ result }}</span>
-            <span class="text-sm font-bold text-emerald-500 ml-1">{{ toCurrency }}</span>
+          <div class="input-box bg-[var(--color-primary-light)] border-[var(--color-primary-light)]">
+            <span class="text-lg font-extrabold text-[var(--color-primary)] flex-1">{{ convResult }}</span>
+            <span class="text-sm font-bold text-[var(--color-success)] ml-2 flex-shrink-0">{{ convTo }}</span>
           </div>
         </div>
       </div>
 
-      <div class="flex flex-wrap gap-1.5 mb-3">
-        <span class="text-[10px] text-[var(--color-text-muted)] mr-1 self-center">从</span>
-        <button v-for="c in currencies" :key="'f-'+c.code"
-          :class="['chip', fromCurrency===c.code ? 'chip-on' : '']"
-          @click="fromCurrency=c.code">{{ c.flag }} {{ c.code }}</button>
+      <div class="flex flex-wrap gap-1.5 mb-2">
+        <span class="text-[10px] text-[var(--color-text-muted)] self-center mr-1">从</span>
+        <button v-for="c in hotChips" :key="'f-'+c.code" :class="['chip', convFrom===c.code && 'chip-on']" @click="convFrom=c.code">{{ c.flag }} {{ c.code }}</button>
       </div>
       <div class="flex flex-wrap gap-1.5">
-        <span class="text-[10px] text-[var(--color-text-muted)] mr-1 self-center">到</span>
-        <button v-for="c in currencies" :key="'t-'+c.code"
-          :class="['chip', toCurrency===c.code ? 'chip-on' : '']"
-          @click="toCurrency=c.code">{{ c.flag }} {{ c.code }}</button>
+        <span class="text-[10px] text-[var(--color-text-muted)] self-center mr-1">到</span>
+        <button v-for="c in hotChips" :key="'t-'+c.code" :class="['chip', convTo===c.code && 'chip-on']" @click="convTo=c.code">{{ c.flag }} {{ c.code }}</button>
       </div>
-
-      <div v-if="rateInfo" class="mt-3 text-center text-xs text-[var(--color-text-soft)] bg-pink-50/50 py-2 rounded-xl">
-        1 <b class="text-[var(--color-text)]">{{ fromCurrency }}</b> = <b class="text-pink-600">{{ rateInfo }}</b> {{ toCurrency }}
+      <div v-if="convRateInfo" class="mt-3 text-center text-xs text-[var(--color-text-soft)] bg-[var(--color-bg-soft)] py-2 rounded-xl">
+        1 <b class="text-[var(--color-text)]">{{ convFrom }}</b> = <b class="text-[var(--color-primary)]">{{ convRateInfo }}</b> {{ convTo }}
       </div>
     </div>
 
     <!-- 热门汇率 -->
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-base font-bold text-[var(--color-text)]">🔥 热门汇率</h3>
-      <button @click="refreshRates" class="w-8 h-8 rounded-full border border-pink-200 bg-white flex items-center justify-center text-sm text-pink-400 hover:bg-pink-50 hover:text-pink-600 transition-colors" :class="{ 'animate-spin': refreshing }">🔄</button>
+      <div class="flex items-center gap-2">
+        <h3 class="text-base font-bold text-[var(--color-text)]">🔥 热门汇率</h3>
+        <span class="text-[11px] text-[var(--color-text-muted)]">{{ hotCurrencies.length }} 种</span>
+      </div>
     </div>
 
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-6">
-      <div v-for="(c,i) in hotCurrencies" :key="c.code" class="bg-white rounded-[var(--radius-card)] p-4 border border-pink-100/80 shadow-sm hover:shadow-md hover:border-pink-200 transition-all duration-200" :style="{ animationDelay: i*40+'ms' }" style="animation: fadeUp .4s cubic-bezier(.25,.1,.25,1) both">
-        <div class="flex items-center gap-2 mb-2.5">
-          <span class="text-xl">{{ c.flag }}</span>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
+      <div v-for="(c,i) in hotCurrencies" :key="c.code" class="rate-card" :style="{ animationDelay: i*40+'ms' }">
+        <div class="flex items-center gap-2.5 mb-3">
+          <span class="text-xl leading-none">{{ c.flag }}</span>
           <div>
-            <div class="text-xs font-bold text-[var(--color-text)]">{{ c.code }} <span class="text-[10px] font-normal text-[var(--color-text-muted)]">{{ c.name }}</span></div>
+            <div class="text-[13px] font-bold text-[var(--color-text)]">{{ c.code }}</div>
+            <div class="text-[10px] text-[var(--color-text-muted)]">{{ c.name }}</div>
           </div>
         </div>
-        <div class="text-xl font-extrabold text-[var(--color-text)] tracking-tight">
+        <div class="text-[22px] font-extrabold text-[var(--color-text)] tracking-tight">
           <span v-if="c.unit>1" class="text-xs text-[var(--color-text-muted)] font-medium">{{ c.unit }}</span>
           {{ c.rate?.toFixed(4) || '--' }}
         </div>
-        <div class="mt-2 h-7" v-if="sparkData[c.code]?.length>=2">
-          <Sparkline :data="sparkData[c.code]" color="#ff6b8a" />
+        <div class="mt-2 h-8" v-if="sparkData[c.code]?.length>=2">
+          <Sparkline :data="sparkData[c.code]" color="#E85D8E" />
         </div>
       </div>
     </div>
 
     <!-- 全部币种 -->
-    <div class="flex items-center justify-between mb-3">
-      <h3 class="text-base font-bold text-[var(--color-text)]">🌍 全部币种</h3>
-      <span class="text-xs text-[var(--color-text-muted)]">{{ allCurrencies.length }} 种</span>
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-3 gap-2">
+      <div class="flex items-center gap-2">
+        <h3 class="text-base font-bold text-[var(--color-text)]">🌍 全部币种</h3>
+        <span class="text-[11px] text-[var(--color-text-muted)]">{{ filteredAll.length }} / {{ allCurrencies.length }} 种</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="relative">
+          <input v-model="searchQuery" type="text" placeholder="搜索币种..." class="w-40 md:w-48 h-8 rounded-lg border border-[var(--color-border)] bg-white px-3 text-xs text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-light)] transition-all" />
+        </div>
+      </div>
     </div>
 
-    <div class="bg-white rounded-[var(--radius-card)] border border-pink-100/80 shadow-sm overflow-hidden">
-      <div class="flex items-center px-4 py-2.5 bg-pink-50/50 border-b border-pink-100 text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
-        <span class="w-14">货币</span><span class="w-12">代码</span><span class="flex-1">名称</span><span class="w-24 text-right">汇率 (CNY)</span>
+    <div class="bg-white rounded-[var(--radius-card)] border border-[var(--color-border)] shadow-[var(--shadow-card)] overflow-hidden">
+      <!-- 表头 -->
+      <div class="flex items-center px-4 py-2.5 bg-[var(--color-bg-soft)] border-b border-[var(--color-border)] text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+        <span class="w-12">货币</span><span class="w-14">代码</span><span class="flex-1">名称</span><span class="w-28 text-right">汇率 (CNY)</span>
       </div>
-      <div v-for="c in allCurrencies" :key="c.code" class="flex items-center px-4 py-2 border-b border-pink-50 text-[13px] hover:bg-pink-50/30 transition-colors last:border-b-0">
-        <span class="w-14 text-base">{{ c.flag }}</span>
-        <span class="w-12 font-semibold text-[var(--color-text)]">{{ c.code }}</span>
+
+      <!-- 列表（默认20条） -->
+      <div v-for="c in pagedCurrencies" :key="c.code" class="flex items-center px-4 py-2.5 border-b border-[var(--color-bg-soft)] text-[13px] hover:bg-[var(--color-bg-soft)]/60 transition-colors last:border-b-0">
+        <span class="w-12 text-base">{{ c.flag }}</span>
+        <span class="w-14 font-semibold text-[var(--color-text)]">{{ c.code }}</span>
         <span class="flex-1 text-[var(--color-text-soft)] truncate">{{ c.name }}</span>
-        <span class="w-24 text-right font-semibold text-[var(--color-text-soft)] font-mono text-xs">
+        <span class="w-28 text-right font-semibold text-[var(--color-text)] font-[var(--font-mono)] text-xs">
           <template v-if="c.unit>1">{{ c.unit }}</template>
           {{ c.rate?.toFixed(4) || '--' }}
         </span>
+      </div>
+
+      <!-- 分页 -->
+      <div v-if="totalPages > 1" class="flex items-center justify-center gap-1 px-4 py-3 border-t border-[var(--color-border)]">
+        <button @click="currentPage=Math.max(1,currentPage-1)" :disabled="currentPage===1" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--color-border)] disabled:opacity-30 hover:bg-[var(--color-bg-soft)] transition-colors">‹</button>
+        <button v-for="p in visiblePages" :key="p" @click="currentPage=p" :class="['px-3 py-1.5 rounded-lg text-xs font-medium transition-colors', p===currentPage ? 'bg-[var(--color-primary)] text-white' : 'border border-[var(--color-border)] hover:bg-[var(--color-bg-soft)]']">{{ p }}</button>
+        <button @click="currentPage=Math.min(totalPages,currentPage+1)" :disabled="currentPage===totalPages" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--color-border)] disabled:opacity-30 hover:bg-[var(--color-bg-soft)] transition-colors">›</button>
       </div>
     </div>
 
     <!-- 页脚 -->
     <div class="mt-8 pb-4 text-center">
       <p class="text-[11px] text-[var(--color-text-muted)]">数据仅供参考，请以实际银行汇率为准</p>
-      <p class="text-[11px] text-[var(--color-text-muted)] mt-1">
-        <span class="font-medium">🦌 白鹿io</span> · 汇率工具
-      </p>
+      <p class="text-[11px] text-[var(--color-text-muted)] mt-1"><span class="font-medium">🦌 白鹿io</span> · 汇率工具</p>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref,reactive,onMounted,computed } from 'vue'
-import { fetchLiveRates,buildCurrencyList,fetchHistory,getCNYHistory,HOT_CURRENCIES } from '../api/exchangeRate.js'
+import { ref,reactive,onMounted,onUnmounted,computed } from 'vue'
+import { fetchLiveRates,buildCurrencyList,fetchHistory,getCNYHistory,HOT_CURRENCIES,CURRENCY_META } from '../api/exchangeRate.js'
 import Sparkline from '../components/Sparkline.vue'
 
 const emit = defineEmits(['updateTime','refreshStart','refreshEnd'])
-const loading=ref(true), refreshing=ref(false), lastTime=ref('--')
+
+const loading=ref(true), refreshing=ref(false), lastTime=ref('')
 const rawRates=reactive({}), sparkData=reactive({})
 
-const stats=computed(()=>[
-  { label:'支持币种', value: buildCurrencyList(rawRates).filter(c=>c.code!=='CNY').length, icon:'🌐', bg:'', iconBg:'bg-blue-50 text-blue-400' },
-  { label:'热门汇率', value: buildCurrencyList(rawRates).filter(c=>HOT_CURRENCIES.includes(c.code)).length, icon:'🔥', bg:'', iconBg:'bg-amber-50 text-amber-400' },
-  { label:'刷新频率', value:'30s', icon:'⚡', bg:'', iconBg:'bg-emerald-50 text-emerald-400' },
-  { label:'最后更新', value: lastTime.value, icon:'🕐', bg:'', iconBg:'bg-purple-50 text-purple-400' },
-])
-
 // 换算器
-const currencies = HOT_CURRENCIES.map(code => {
-  const meta = { USD:{flag:'🇺🇸'},EUR:{flag:'🇪🇺'},GBP:{flag:'🇬🇧'},JPY:{flag:'🇯🇵'},AUD:{flag:'🇦🇺'},CAD:{flag:'🇨🇦'},CHF:{flag:'🇨🇭'},NZD:{flag:'🇳🇿'},SGD:{flag:'🇸🇬'},HKD:{flag:'🇭🇰'},KRW:{flag:'🇰🇷'},THB:{flag:'🇹🇭'},MYR:{flag:'🇲🇾'},PHP:{flag:'🇵🇭'},IDR:{flag:'🇮🇩'},VND:{flag:'🇻🇳'},INR:{flag:'🇮🇳'} }
-  return { code, flag: meta[code]?.flag || '💱' }
+const convAmount=ref(100), convFrom=ref('USD'), convTo=ref('CNY')
+const convCnyRates=ref({})
+const convResult=computed(()=>{
+  if(!convAmount.value||convAmount.value<=0)return'0.00'
+  const r=crossRate();return r?(convAmount.value*r).toFixed(2):'--'
 })
-const amount=ref(100), fromCurrency=ref('USD'), toCurrency=ref('CNY'), allRates=ref({})
-const result=computed(()=>{ if(!amount.value||amount.value<=0)return'0.00';const r=crossRate();return r?(amount.value*r).toFixed(2):'--' })
-const rateInfo=computed(()=>{const r=crossRate();return r?.toFixed(4)||null})
-function crossRate(){const r=allRates.value;if(!r)return null;const f=fromCurrency.value,t=toCurrency.value;if(f===t)return 1;const f2c=f==='CNY'?1:(r[f]?1/r[f]:null);const c2t=t==='CNY'?1:(r[t]||null);return f2c!=null&&c2t!=null?f2c*c2t:null}
-function swapCurrencies(){[fromCurrency.value,toCurrency.value]=[toCurrency.value,fromCurrency.value]}
+const convRateInfo=computed(()=>{const r=crossRate();return r?.toFixed(4)||null})
+function crossRate(){const r=convCnyRates.value;if(!r)return null;const f=convFrom.value,t=convTo.value;if(f===t)return 1;const f2c=f==='CNY'?1:(r[f]?1/r[f]:null);const c2t=t==='CNY'?1:(r[t]||null);return f2c!=null&&c2t!=null?f2c*c2t:null}
+function swapConv(){[convFrom.value,convTo.value]=[convTo.value,convFrom.value]}
 
+const hotChips = computed(() => HOT_CURRENCIES.map(code => ({ code, flag: CURRENCY_META[code]?.flag || '💱' })))
+
+// 汇率数据
 const hotCurrencies=computed(()=>buildCurrencyList(rawRates).filter(c=>HOT_CURRENCIES.includes(c.code)))
 const allCurrencies=computed(()=>buildCurrencyList(rawRates).filter(c=>c.code!=='CNY'&&!HOT_CURRENCIES.includes(c.code)))
+
+const searchQuery=ref('')
+const currentPage=ref(1)
+const pageSize=20
+
+const filteredAll=computed(()=>{
+  const q=searchQuery.value.toLowerCase()
+  if(!q)return allCurrencies.value
+  return allCurrencies.value.filter(c=>c.code.toLowerCase().includes(q)||c.name.toLowerCase().includes(q))
+})
+
+const totalPages=computed(()=>Math.ceil(filteredAll.value.length/pageSize)||0)
+const pagedCurrencies=computed(()=>{
+  const start=(currentPage.value-1)*pageSize
+  return filteredAll.value.slice(start,start+pageSize)
+})
+
+const visiblePages=computed(()=>{
+  const pages=[]
+  const total=totalPages.value
+  const current=currentPage.value
+  let start=Math.max(1,current-2)
+  let end=Math.min(total,current+2)
+  if(end-start<4){if(start===1)end=Math.min(total,5);else if(end===total)start=Math.max(1,total-4)}
+  for(let i=start;i<=end;i++)pages.push(i)
+  return pages
+})
+
+const stats=computed(()=>[
+  { label:'支持币种', value: buildCurrencyList(rawRates).filter(c=>c.code!=='CNY').length, icon:'🌐', bg:'bg-blue-50/40' },
+  { label:'热门汇率', value: hotCurrencies.value.length, icon:'🔥', bg:'bg-amber-50/40' },
+  { label:'刷新频率', value:'30s', icon:'⚡', bg:'bg-emerald-50/40' },
+  { label:'最后更新', value: lastTime.value||'--', icon:'🕐', bg:'bg-purple-50/40' },
+])
 
 async function loadSpark(){try{const d=await fetchHistory(7);HOT_CURRENCIES.forEach(c=>{const v=getCNYHistory(d,c);if(v.length>=2)sparkData[c]=v})}catch{}}
 
 async function refreshRates(){
   refreshing.value=true;emit('refreshStart')
-  try{const d=await fetchLiveRates();Object.assign(rawRates,d.rates||{});allRates.value=d.rates||{};loading.value=false;lastTime.value=new Date().toLocaleTimeString('zh-CN',{hour12:false});emit('updateTime',lastTime.value)}catch{}
+  try{const d=await fetchLiveRates();Object.assign(rawRates,d.rates||{});convCnyRates.value=d.rates||{};loading.value=false;lastTime.value=new Date().toLocaleTimeString('zh-CN',{hour12:false});emit('updateTime',lastTime.value)}catch{}
   finally{refreshing.value=false;emit('refreshEnd')}
 }
 
-onMounted(async()=>{await Promise.all([refreshRates(),loadSpark()]);setInterval(refreshRates,30000)})
+let timer=null
+onMounted(async()=>{await Promise.all([refreshRates(),loadSpark()]);timer=setInterval(refreshRates,30000)})
+onUnmounted(()=>clearInterval(timer))
 </script>
 
 <style>
 @reference "tailwindcss";
-.stat-card {
-  @apply bg-white rounded-[var(--radius-card)] p-4 border border-pink-100/80 shadow-sm flex items-center justify-between;
-}
-.chip {
-  @apply inline-flex items-center gap-0.5 px-2.5 py-1.5 rounded-full border border-pink-200 bg-white text-[11px] font-medium text-[var(--color-text-soft)] transition-all duration-150 cursor-pointer hover:border-pink-400 hover:text-pink-500;
-}
-.chip-on {
-  @apply bg-pink-500 text-white border-pink-500 font-semibold shadow-sm;
-}
-@keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+.stat-card { @apply bg-white rounded-[var(--radius-card)] p-4 border border-[var(--color-border)] flex items-center justify-between; box-shadow: var(--shadow-card); }
+.input-box { @apply flex items-center h-11 rounded-[var(--radius-input)] border border-[var(--color-border)] bg-white px-3 transition-all; }
+.input-box:focus-within { @apply border-[var(--color-primary)]; box-shadow: 0 0 0 3px var(--color-primary-light); }
+.swap-btn { @apply w-9 h-9 rounded-full border-2 border-[var(--color-border)] bg-white flex items-center justify-center text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white hover:border-[var(--color-primary)] transition-all duration-200 flex-shrink-0 self-center; margin-bottom:2px; }
+.chip { @apply inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-[var(--color-border)] bg-white text-[11px] font-medium text-[var(--color-text-soft)] transition-all duration-150 cursor-pointer hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]; }
+.chip-on { @apply bg-[var(--color-primary)] text-white border-[var(--color-primary)] font-semibold; }
+.rate-card { @apply bg-white rounded-[var(--radius-card)] p-4 border border-[var(--color-border)]; box-shadow: var(--shadow-card); transition: all 0.2s; animation: fadeUp 0.4s cubic-bezier(.25,.1,.25,1) both; }
+.rate-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
+@keyframes fadeUp { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
 </style>

@@ -1,170 +1,124 @@
 <template>
-  <div class="page">
-    <div class="header glass">
-      <h2>📈 历史走势</h2>
-      <div class="range-pills">
-        <button v-for="r in ranges" :key="r.days"
-          :class="['pill', { on: activeRange===r.days }]"
-          @click="loadRange(r.days)"
-        >{{ r.label }}</button>
+  <div class="max-w-6xl mx-auto">
+    <div class="mb-5">
+      <h1 class="text-xl font-extrabold text-[var(--color-text)]">走势分析</h1>
+      <p class="text-sm text-[var(--color-text-soft)] mt-1">查看主要货币兑人民币的历史变化</p>
+    </div>
+
+    <!-- 时间范围 -->
+    <div class="flex items-center gap-1.5 mb-5 bg-white rounded-xl p-1 border border-[var(--color-border)] w-fit">
+      <button v-for="r in ranges" :key="r.days" @click="loadRange(r.days)" :class="['px-4 py-2 rounded-lg text-xs font-semibold transition-all', activeRange===r.days ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-[var(--color-text-soft)] hover:bg-[var(--color-bg-soft)]']">{{ r.label }}</button>
+    </div>
+
+    <!-- 重点趋势大卡 -->
+    <div v-if="focusData" class="bg-white rounded-[var(--radius-card)] p-5 md:p-6 border border-[var(--color-border)] shadow-[var(--shadow-card)] mb-5">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">{{ focusData.flag }}</span>
+          <h3 class="text-base font-bold text-[var(--color-text)]">{{ focusData.code }} / CNY</h3>
+        </div>
+        <select v-model="focusCode" @change="updateFocus" class="text-sm font-semibold text-[var(--color-text)] bg-[var(--color-bg-soft)] border border-[var(--color-border)] rounded-lg px-3 py-1.5 cursor-pointer">
+          <option v-for="c in focusOptions" :key="c.code" :value="c.code">{{ c.flag }} {{ c.code }}</option>
+        </select>
+      </div>
+
+      <div class="h-52 mb-4">
+        <Sparkline :data="focusData.data" :color="'#E85D8E'" />
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="text-center p-3 rounded-xl bg-[var(--color-bg-soft)]">
+          <div class="text-[11px] text-[var(--color-text-muted)] mb-1">当前值</div>
+          <div class="text-lg font-extrabold text-[var(--color-text)] font-[var(--font-mono)]">{{ focusData.current }}</div>
+        </div>
+        <div class="text-center p-3 rounded-xl bg-[var(--color-bg-soft)]">
+          <div class="text-[11px] text-[var(--color-text-muted)] mb-1">最高值</div>
+          <div class="text-lg font-extrabold text-[var(--color-success)] font-[var(--font-mono)]">{{ focusData.high }}</div>
+        </div>
+        <div class="text-center p-3 rounded-xl bg-[var(--color-bg-soft)]">
+          <div class="text-[11px] text-[var(--color-text-muted)] mb-1">最低值</div>
+          <div class="text-lg font-extrabold text-[var(--color-danger)] font-[var(--font-mono)]">{{ focusData.low }}</div>
+        </div>
+        <div class="text-center p-3 rounded-xl bg-[var(--color-bg-soft)]" :class="focusData.change>=0?'text-[var(--color-success)]':'text-[var(--color-danger)]'">
+          <div class="text-[11px] text-[var(--color-text-muted)] mb-1">区间涨跌</div>
+          <div class="text-lg font-extrabold font-[var(--font-mono)]">{{ focusData.change>=0?'+':'' }}{{ focusData.change }}%</div>
+        </div>
       </div>
     </div>
 
-    <div v-if="loading" class="loading-state">
-      <span class="spinner">⏳</span>
-      <p>加载历史数据中...</p>
+    <div v-if="loading" class="text-center py-12">
+      <div class="inline-block w-8 h-8 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin"></div>
+      <p class="text-sm text-[var(--color-text-muted)] mt-3">加载历史数据中...</p>
     </div>
 
-    <div v-else class="trend-grid">
-      <div v-for="c in trendData" :key="c.code" class="trend-card glass">
-        <div class="tc-top">
-          <span class="tc-flag">{{ c.flag }}</span>
+    <!-- 其他币种趋势卡片 -->
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div v-for="c in otherTrends" :key="c.code" class="bg-white rounded-[var(--radius-card)] p-5 border border-[var(--color-border)] shadow-[var(--shadow-card)]">
+        <div class="flex items-center gap-2.5 mb-4">
+          <span class="text-xl">{{ c.flag }}</span>
           <div>
-            <div class="tc-code">{{ c.code }} / CNY</div>
-            <div class="tc-name">{{ c.name }}</div>
+            <div class="text-sm font-bold text-[var(--color-text)]">{{ c.code }} / CNY · {{ c.name }}</div>
           </div>
-          <div class="tc-change" :class="c.trend">
-            <span>{{ c.trendArrow }}</span>
-            <span>{{ c.changeStr }}</span>
+          <div class="ml-auto text-xs font-semibold" :class="c.trend==='up'?'text-[var(--color-success)]':c.trend==='down'?'text-[var(--color-danger)]':'text-[var(--color-text-muted)]'">
+            {{ c.changeStr }}
           </div>
         </div>
-
-        <div class="tc-chart">
-          <Sparkline :data="c.data" :color="c.color" />
+        <div class="h-20 mb-3">
+          <Sparkline :data="c.data" :color="c.color||'#E85D8E'" />
         </div>
-
-        <div class="tc-range">
+        <div class="flex justify-between text-[11px] text-[var(--color-text-muted)] font-[var(--font-mono)]">
           <span>起始 · {{ c.data[0]?.toFixed(4) || '--' }}</span>
           <span>最新 · {{ c.data[c.data.length-1]?.toFixed(4) || '--' }}</span>
         </div>
       </div>
     </div>
-
-    <div v-if="!loading && trendData.length===0" class="empty">
-      <span>📭</span>
-      <p>暂无历史数据</p>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
-import { fetchHistory, getCNYHistory, HOT_CURRENCIES, CURRENCY_META } from '../api/exchangeRate.js'
+import { ref,reactive,computed,onMounted } from 'vue'
+import { fetchHistory,getCNYHistory,HOT_CURRENCIES,CURRENCY_META } from '../api/exchangeRate.js'
 import Sparkline from '../components/Sparkline.vue'
 
-const ranges = [
-  { days:7, label:'7天' },
-  { days:30, label:'30天' },
-  { days:90, label:'90天' },
-  { days:180, label:'180天' },
-  { days:360, label:'360天' },
-]
+const ranges=[{days:7,label:'7天'},{days:30,label:'30天'},{days:90,label:'90天'},{days:180,label:'180天'},{days:360,label:'360天'}]
+const activeRange=ref(7), loading=ref(true)
+const allTrends=reactive([]), focusCode=ref('USD')
 
-const activeRange = ref(7)
-const loading = ref(true)
-const trendData = reactive([])
+const focusOptions=computed(()=>HOT_CURRENCIES.map(code=>({code,flag:CURRENCY_META[code]?.flag||'💱'})))
 
-onMounted(() => loadRange(7))
+const focusData=computed(()=>{
+  const found=allTrends.find(c=>c.code===focusCode.value)
+  if(!found||found.data.length<2)return null
+  const d=found.data, current=d[d.length-1]
+  const high=Math.max(...d), low=Math.min(...d)
+  const change=((current-d[0])/d[0]*100).toFixed(2)
+  return {...found,current:current.toFixed(4),high:high.toFixed(4),low:low.toFixed(4),change}
+})
 
-async function loadRange(days) {
-  activeRange.value = days
-  loading.value = true
-  trendData.length = 0
+const otherTrends=computed(()=>allTrends.filter(c=>c.code!==focusCode.value&&c.data.length>=2))
 
-  try {
-    const data = await fetchHistory(days)
-    HOT_CURRENCIES.forEach(code => {
-      const c = { code, ...CURRENCY_META[code] || {name:code,flag:'💱',symbol:'',color:'#c4a8b4'} }
-      const values = getCNYHistory(data, c.code)
-      if (values.length < 2) return
+function updateFocus(){}
 
-      const first = values[0], last = values[values.length-1]
-      const diff = last - first
-      const pct = first ? (diff/first*100) : 0
-      const trend = diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat'
+onMounted(()=>loadRange(7))
 
-      trendData.push({
-        ...c,
-        data: values,
-        trend,
-        trendArrow: diff>0?'▲':diff<0?'▼':'─',
-        changeStr: `${pct>=0?'+':''}${pct.toFixed(2)}%`
+async function loadRange(days){
+  activeRange.value=days; loading.value=true; allTrends.length=0
+  try{
+    const data=await fetchHistory(days)
+    HOT_CURRENCIES.forEach(code=>{
+      const vals=getCNYHistory(data,code)
+      if(vals.length<2)return
+      const first=vals[0],last=vals[vals.length-1]
+      const diff=last-first, pct=first?(diff/first*100):0
+      allTrends.push({
+        code, name:CURRENCY_META[code]?.name||code,
+        flag:CURRENCY_META[code]?.flag||'💱',
+        color:CURRENCY_META[code]?.color||'#E85D8E',
+        data:vals, trend:diff>0?'up':diff<0?'down':'flat',
+        changeStr:`${pct>=0?'+':''}${pct.toFixed(2)}%`
       })
     })
-  } catch(e) { console.error(e) }
-  finally { loading.value = false }
+  }catch(e){console.error(e)}
+  finally{loading.value=false}
 }
 </script>
-
-<style lang="scss" scoped>
-.page { max-width:1400px; margin:0 auto; padding-top:16px }
-
-.header {
-  border-radius:var(--radius-lg); padding:16px 20px; margin-bottom:18px;
-  display:flex; align-items:center; justify-content:space-between;
-  flex-wrap:wrap; gap:12px;
-  animation:fadeUp .5s var(--ease-out) both;
-
-  h2 { font-size:16px; font-weight:800; letter-spacing:-.02em }
-}
-
-.range-pills { display:flex; gap:6px; flex-wrap:wrap }
-
-.pill {
-  padding:6px 14px; border-radius:100px;
-  border:1px solid var(--border-input);
-  background:var(--bg-input); color:var(--text-secondary);
-  font-size:12px; font-weight:600; cursor:pointer;
-  transition:all .2s; font-family:inherit;
-
-  &:hover { border-color:var(--accent); color:var(--text-primary) }
-  &.on {
-    background:linear-gradient(135deg,#6366f1,#a855f7);
-    color:#fff; border-color:transparent;
-  }
-}
-
-.loading-state { text-align:center; padding:60px 0; color:var(--text-muted); .spinner{ font-size:36px; display:block; margin-bottom:8px } p { font-size:14px } }
-
-.trend-grid {
-  display:grid;
-  grid-template-columns:repeat(1,1fr);
-  gap:12px;
-  @media (min-width:700px) { grid-template-columns:repeat(2,1fr) }
-  @media (min-width:1100px) { grid-template-columns:repeat(3,1fr) }
-}
-
-.trend-card {
-  border-radius:var(--radius-lg); padding:18px 20px;
-  animation: fadeUp .5s var(--ease-out) both;
-
-  &:nth-child(1) { animation-delay:.05s }
-  &:nth-child(2) { animation-delay:.1s }
-  &:nth-child(3) { animation-delay:.15s }
-  &:nth-child(4) { animation-delay:.2s }
-  &:nth-child(5) { animation-delay:.25s }
-}
-
-.tc-top {
-  display:flex; align-items:center; gap:10px; margin-bottom:14px;
-  .tc-flag { font-size:26px; line-height:1 }
-  .tc-code { font-size:14px; font-weight:700; color:var(--text-primary) }
-  .tc-name { font-size:11px; color:var(--text-muted); font-weight:500 }
-}
-.tc-change {
-  margin-left:auto; display:flex; align-items:center; gap:3px;
-  font-size:12px; font-weight:600;
-  &.up { color:#4ade80 }
-  &.down { color:#f87171 }
-  &.flat { color:var(--text-muted) }
-}
-
-.tc-chart { margin-bottom:10px }
-
-.tc-range {
-  display:flex; justify-content:space-between;
-  font-size:11px; color:var(--text-muted);
-}
-
-.empty { text-align:center; padding:60px 0; color:var(--text-muted); span{ font-size:40px } p{ margin-top:8px; font-size:14px } }
-</style>
