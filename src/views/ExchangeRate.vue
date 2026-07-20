@@ -162,19 +162,29 @@ function swapConv(){[convFrom.value,convTo.value]=[convTo.value,convFrom.value]}
 
 const hotChips = computed(() => HOT_CURRENCIES.map(code => ({ code, flag: CURRENCY_META[code]?.flag || '💱' })))
 
-// 全部币种（含热门），用于换算器的下拉选择
-// 初始时预填热门币种，避免下拉框为空
+// 全部币种，用于换算器的下拉选择（CNY 置顶）
 const allCurrenciesFull = computed(() => {
   const list = buildCurrencyList(rawRates.value)
-  if (list.length > 0) return list
-  // fallback：API 返回前先展示热门币种（含 CNY）
+  if (list.length > 0) {
+    // CNY 置顶
+    const cny = list.find(c => c.code === 'CNY')
+    const rest = list.filter(c => c.code !== 'CNY')
+    return cny ? [cny, ...rest] : list
+  }
+  // fallback：API 返回前先展示热门币种（CNY 置顶）
   const fallback = HOT_CURRENCIES.map(code => ({
     code, ...CURRENCY_META[code] || { name: code, flag: '💱', color: '#c4a8b4' },
     rate: null, unit: CURRENCY_META[code]?.unit || 1
   }))
-  // 确保 CNY 在列表中
+  // CNY 放到最前面
   if (!fallback.find(c => c.code === 'CNY')) {
-    fallback.push({ code: 'CNY', name: '人民币', flag: '🇨🇳', symbol: '¥', color: '#ef4444', rate: null, unit: 1 })
+    fallback.unshift({ code: 'CNY', name: '人民币', flag: '🇨🇳', symbol: '¥', color: '#ef4444', rate: null, unit: 1 })
+  } else {
+    const cnyIdx = fallback.findIndex(c => c.code === 'CNY')
+    if (cnyIdx > 0) {
+      const [cny] = fallback.splice(cnyIdx, 1)
+      fallback.unshift(cny)
+    }
   }
   return fallback
 })
