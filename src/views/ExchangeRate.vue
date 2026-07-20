@@ -82,7 +82,7 @@
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
-      <div v-for="(c,i) in hotCurrencies" :key="c.code" class="rate-card" :style="{ animationDelay: i*40+'ms' }">
+      <div v-for="(c,i) in hotCurrencies" :key="c.code" class="rate-card cursor-pointer" :style="{ animationDelay: i*40+'ms' }" @click="convFrom=c.code" title="点击设为持有货币">
         <div class="flex items-center gap-2.5 mb-3">
           <span class="text-xl leading-none">{{ c.flag }}</span>
           <div>
