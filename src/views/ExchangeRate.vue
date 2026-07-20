@@ -48,13 +48,14 @@
 
         <!-- 右侧：结果 -->
         <div class="flex-1">
-          <label class="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5 block">兑换为</label>
+          <label class="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5 block">兑换结果</label>
           <div class="flex items-stretch gap-2">
             <select v-model="convTo" class="curr-sel w-[140px] flex-shrink-0">
               <option v-for="c in allCurrenciesFull" :key="'t-'+c.code" :value="c.code">{{ c.flag }} {{ c.code }} {{ c.name }}</option>
             </select>
             <div class="flex-1 flex items-center bg-[var(--color-primary-light)] border border-[var(--color-primary-light)] rounded-xl px-3 min-w-0">
               <span class="text-lg font-extrabold text-[var(--color-primary)] truncate">{{ convResult }}</span>
+              <span class="text-sm font-semibold text-[var(--color-text-soft)] ml-2 flex-shrink-0">{{ convTo === 'CNY' ? '人民币' : convTo }}</span>
             </div>
           </div>
         </div>
@@ -162,7 +163,21 @@ function swapConv(){[convFrom.value,convTo.value]=[convTo.value,convFrom.value]}
 const hotChips = computed(() => HOT_CURRENCIES.map(code => ({ code, flag: CURRENCY_META[code]?.flag || '💱' })))
 
 // 全部币种（含热门），用于换算器的下拉选择
-const allCurrenciesFull = computed(() => buildCurrencyList(rawRates))
+// 初始时预填热门币种，避免下拉框为空
+const allCurrenciesFull = computed(() => {
+  const list = buildCurrencyList(rawRates)
+  if (list.length > 0) return list
+  // fallback：API 返回前先展示热门币种（含 CNY）
+  const fallback = HOT_CURRENCIES.map(code => ({
+    code, ...CURRENCY_META[code] || { name: code, flag: '💱', color: '#c4a8b4' },
+    rate: null, unit: CURRENCY_META[code]?.unit || 1
+  }))
+  // 确保 CNY 在列表中
+  if (!fallback.find(c => c.code === 'CNY')) {
+    fallback.push({ code: 'CNY', name: '人民币', flag: '🇨🇳', symbol: '¥', color: '#ef4444', rate: null, unit: 1 })
+  }
+  return fallback
+})
 
 // 汇率数据
 const hotCurrencies=computed(()=>buildCurrencyList(rawRates).filter(c=>HOT_CURRENCIES.includes(c.code)))
