@@ -1,29 +1,26 @@
 <template>
-  <div class="rate-card glass" :style="{ animationDelay: delay+'ms' }">
-    <div class="card-top">
-      <div class="card-id">
+  <div class="card glass" :style="{ animationDelay: delay+'ms', '--grad': gradient }">
+    <div class="card-glow"></div>
+    <div class="card-inner">
+      <div class="card-top">
         <span class="flag">{{ currency.flag }}</span>
-        <div>
-          <div class="card-code">{{ currency.code }} <span class="card-vs">/ CNY</span></div>
-          <div class="card-name">{{ currency.name }}</div>
-        </div>
+        <span class="code">{{ currency.code }}</span>
+        <span class="name">{{ currency.name }}</span>
       </div>
-      <div v-if="!loading&&!error&&rate!==null" class="card-chg" :class="chgCls">
-        {{ fmtChg }}
-      </div>
-    </div>
 
-    <div class="card-val">
-      <div v-if="loading" class="skel"></div>
-      <div v-else-if="error" class="err">获取失败</div>
-      <template v-else-if="rate!==null">
+      <div class="card-rate" v-if="!loading && !error && rate !== null">
         <span v-if="currency.unit>1" class="unit">{{ currency.unit }}</span>
-        <span class="val">{{ fmtVal }}</span>
-      </template>
-    </div>
+        <span class="val" :key="rate">{{ formattedRate }}</span>
+      </div>
+      <div v-else-if="loading" class="skel"></div>
+      <div v-else class="err">—</div>
 
-    <div class="card-spark" v-if="!loading&&!error&&rate!==null">
-      <Sparkline :data="history" color="#ff6b8a" />
+      <div class="card-meta" v-if="!loading && !error && rate !== null">
+        <span class="chg" :class="chgCls">{{ fmtChg }}</span>
+        <span class="spark-wrap">
+          <Sparkline :data="history" :color="currency.color" />
+        </span>
+      </div>
     </div>
   </div>
 </template>
@@ -33,55 +30,93 @@ import { computed } from 'vue'
 import Sparkline from './Sparkline.vue'
 
 const p=defineProps({
-  currency:Object, rate:Number, changePercent:{type:Number,default:0},
-  loading:Boolean, error:Boolean, delay:{type:Number,default:0},
+  currency:Object, rate:Number,
+  changePercent:{type:Number,default:0},
+  loading:Boolean, error:Boolean,
+  delay:{type:Number,default:0},
   history:{type:Array,default:()=>[]}
 })
 
-const fmtVal = computed(()=>p.rate?.toFixed(4)??'--')
+const gradient = computed(()=>{
+  const c=p.currency
+  // 每个币种独特的 aurora 渐变
+  const g = {
+    USD:'linear-gradient(135deg, rgba(99,102,241,.2), rgba(168,85,247,.1))',
+    EUR:'linear-gradient(135deg, rgba(59,130,246,.2), rgba(99,102,241,.1))',
+    GBP:'linear-gradient(135deg, rgba(168,85,247,.2), rgba(236,72,153,.1))',
+    JPY:'linear-gradient(135deg, rgba(236,72,153,.2), rgba(239,68,68,.1))',
+    AUD:'linear-gradient(135deg, rgba(34,197,94,.15), rgba(59,130,246,.1))',
+    CAD:'linear-gradient(135deg, rgba(239,68,68,.15), rgba(249,115,22,.1))',
+    CHF:'linear-gradient(135deg, rgba(168,85,247,.15), rgba(99,102,241,.1))',
+    NZD:'linear-gradient(135deg, rgba(34,197,94,.15), rgba(168,85,247,.1))',
+    SGD:'linear-gradient(135deg, rgba(249,115,22,.15), rgba(236,72,153,.1))',
+    HKD:'linear-gradient(135deg, rgba(59,130,246,.15), rgba(34,197,94,.1))',
+  }
+  return g[c.code] || g.USD
+})
+
+const formattedRate = computed(()=>p.rate?.toFixed(4)??'--')
 const chgCls = computed(()=>p.changePercent>0?'up':p.changePercent<0?'down':'flat')
 const fmtChg = computed(()=>`${p.changePercent>=0?'+':''}${p.changePercent}%`)
 </script>
 
 <style lang="scss" scoped>
-.rate-card {
-  border-radius:var(--radius-lg); padding:14px 16px;
-  box-shadow:var(--shadow-sm);
-  animation:fadeUp .45s var(--ease) both;
+.card {
+  border-radius:var(--radius-md);
+  position:relative; z-index:1; overflow:hidden;
+  animation: fadeUp .6s var(--ease-out) both;
+  transition: all .4s var(--spring);
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 60px rgba(0,0,0,.4);
+    .card-glow { opacity:1 }
+  }
+}
+
+.card-glow {
+  position:absolute; inset:0;
+  background: var(--grad);
+  opacity:.5; transition:opacity .4s;
+}
+
+.card-inner {
   position:relative; z-index:1;
-  transition:all .3s var(--spring);
-
-  &:hover { transform:translateY(-2px); box-shadow:var(--shadow-md) }
-
-  @media (min-width:769px) { padding:16px 20px }
+  padding:18px 20px;
 }
 
 .card-top {
-  display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:6px;
-}
-.card-id { display:flex; align-items:center; gap:8px }
-.flag { font-size:22px; line-height:1 }
-.card-code { font-size:13px; font-weight:700; color:var(--text-primary) }
-.card-vs { font-size:9px; color:var(--text-muted); font-weight:500 }
-.card-name { font-size:10px; color:var(--text-muted); font-weight:500 }
-
-.card-chg {
-  padding:2px 7px; border-radius:100px; font-size:10px; font-weight:600;
-  &.up{ background:rgba(232,90,120,.1); color:var(--p-600) }
-  &.down{ background:rgba(48,180,105,.1); color:#30b469 }
-  &.flat{ background:rgba(0,0,0,.04); color:var(--text-muted) }
+  display:flex; align-items:center; gap:8px; margin-bottom:14px;
+  .flag { font-size:22px; line-height:1 }
+  .code { font-size:14px; font-weight:700; color: var(--text-primary); letter-spacing:.03em }
+  .name { font-size:11px; color: var(--text-secondary); font-weight:500 }
 }
 
-.card-val {
-  display:flex; align-items:baseline; gap:2px; margin-bottom:8px; min-height:26px;
-  .unit{ font-size:11px; color:var(--text-muted); font-weight:500 }
-  .val{ font-size:24px; font-weight:800; letter-spacing:-.03em; font-variant-numeric:tabular-nums }
-  @media (min-width:769px) { .val{ font-size:28px } }
-
-  .skel{ width:90px; height:24px; border-radius:5px; background:linear-gradient(90deg,rgba(0,0,0,.03),rgba(0,0,0,.07),rgba(0,0,0,.03)); background-size:200% 100%; animation:shimmer 1.5s ease-in-out infinite }
-  .err{ font-size:12px; color:var(--text-muted) }
+.card-rate {
+  display:flex; align-items:baseline; gap:3px; margin-bottom:10px;
+  .unit { font-size:12px; color:var(--text-secondary); font-weight:500 }
+  .val {
+    font-size:30px; font-weight:800; letter-spacing:-.03em;
+    font-variant-numeric:tabular-nums;
+    animation: countIn .4s var(--ease-out);
+  }
 }
-@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
-.card-spark { margin-top:2px }
+.skel {
+  width:100px; height:30px; border-radius:6px; margin-bottom:10px;
+  background:linear-gradient(90deg, rgba(255,255,255,.03), rgba(255,255,255,.08), rgba(255,255,255,.03));
+  background-size:200% 100%; animation:shimmer 2s ease-in-out infinite;
+}
+.err { font-size:30px; font-weight:800; color:var(--text-muted); margin-bottom:10px }
+
+.card-meta {
+  display:flex; align-items:center; justify-content:space-between;
+  .chg {
+    font-size:11px; font-weight:600; padding:2px 8px; border-radius:100px;
+    &.up { color:#4ade80; background:rgba(74,222,128,.1) }
+    &.down { color:#f87171; background:rgba(248,113,113,.1) }
+    &.flat { color:var(--text-muted); background:rgba(255,255,255,.04) }
+  }
+  .spark-wrap { flex:1; margin-left:8px }
+}
 </style>
