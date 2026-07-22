@@ -10,8 +10,15 @@
       ]
     }
   ],
+  "redirects": [
+    { "source": "/", "destination": "/exchange-rate", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/:path*" },
+    { "source": "/exchange-rate", "destination": "/exchange-rate/index.html" },
+    { "source": "/calculator", "destination": "/calculator/index.html" },
+    { "source": "/trends", "destination": "/trends/index.html" },
+    { "source": "/alerts", "destination": "/alerts/index.html" },
     { "source": "/:path*", "destination": "/index.html" }
   ]
 }

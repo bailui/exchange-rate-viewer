@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Layout from '../views/Layout.vue'
+import { updateSeo } from '../seo'
 
 const routes = [
   {
@@ -16,4 +17,6 @@ const routes = [
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })
+router.afterEach((to) => updateSeo(to.path))
+
 export default router
