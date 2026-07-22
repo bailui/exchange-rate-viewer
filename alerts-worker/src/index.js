@@ -1,4 +1,7 @@
-const RATE_SOURCE = 'https://api.exchangerate.fun/latest?base=CNY'
+const RATE_SOURCES = [
+  { name: 'fawazahmed0-cdn', url: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/cny.json' },
+  { name: 'exchangerate-fun', url: 'https://api.exchangerate.fun/latest?base=CNY' },
+]
 const RESEND_ENDPOINT = 'https://api.resend.com/emails'
 const CURRENCY_PATTERN = /^[A-Z]{3}$/
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -157,16 +160,13 @@ async function unsubscribe(url, env) {
 async function checkAlerts(env) {
   await env.DB.prepare("DELETE FROM alerts WHERE status = 'pending' AND unixepoch(created_at) <= unixepoch('now', '-7 days')").run()
   if (!env.RESEND_API_KEY || !env.HMAC_SECRET) return
-  const source = await fetch(RATE_SOURCE, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10_000) })
-  if (!source.ok) throw new Error(`Rate source returned ${source.status}`)
-  const data = await source.json()
-  if (!data?.rates || Object.keys(data.rates).length < 100) throw new Error('Rate source returned invalid data')
+  const rates = await fetchRates()
 
   const { results } = await env.DB.prepare(`SELECT id, email, from_currency, to_currency, direction,
     target, last_state FROM alerts WHERE status = 'active' AND enabled = 1 LIMIT 500`).all()
 
   for (const alert of results || []) {
-    const current = crossRate(data.rates, alert.from_currency, alert.to_currency)
+    const current = crossRate(rates, alert.from_currency, alert.to_currency)
     if (!Number.isFinite(current)) continue
     const met = alert.direction === 'above' ? current >= alert.target : current <= alert.target
     const checkedAt = new Date().toISOString()
@@ -191,6 +191,26 @@ async function checkAlerts(env) {
         .bind(met ? 1 : 0, current, checkedAt, alert.id).run()
     }
   }
+}
+
+async function fetchRates() {
+  let lastError
+  for (const source of RATE_SOURCES) {
+    try {
+      const response = await fetch(source.url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10_000) })
+      if (!response.ok) throw new Error(`returned ${response.status}`)
+      const data = await response.json()
+      const rates = source.name === 'fawazahmed0-cdn'
+        ? Object.fromEntries(Object.entries(data?.cny || {}).map(([code, value]) => [code.toUpperCase(), Number(value)]).filter(([code, value]) => CURRENCY_PATTERN.test(code) && Number.isFinite(value) && value > 0))
+        : data?.rates
+      if (!rates || Object.keys(rates).length < 100) throw new Error('returned invalid data')
+      return rates
+    } catch (error) {
+      lastError = error
+      console.warn(`rate_source_failed ${source.name}: ${error.message}`)
+    }
+  }
+  throw new Error(`All rate sources failed: ${lastError?.message || 'unknown error'}`)
 }
 
 function crossRate(rates, from, to) {

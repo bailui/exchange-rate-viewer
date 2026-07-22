@@ -40,7 +40,7 @@ npm run preview
 
 ## 数据说明
 
-- 实时参考价：ExchangeRate.fun，以 CNY 为基准；页面每 30 秒检查一次更新。
+- 实时参考价：`@fawazahmed0/currency-api` 的 jsDelivr CDN 为主数据源，ExchangeRate.fun 为回退源，以 CNY 为基准；页面每 30 秒检查一次更新。
 - 历史走势：`@fawazahmed0/currency-api` 的日期版本；长周期采用均匀采样，避免一次请求数百个文件。
 - 公开数据仅供参考，实际成交价以银行或支付渠道为准。
 
