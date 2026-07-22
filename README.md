@@ -2,6 +2,8 @@
 
 面向日常使用的汇率查询与换算工具，使用 Vue 3 + Vite 构建，重点呈现美元、澳元、英镑、日元等主要币种兑人民币参考价。
 
+🌐 **在线使用：** [https://rate.bailuioai.com](https://rate.bailuioai.com)
+
 ## 功能
 
 - 实时汇率：约 170 种币种、搜索、排序、收藏、快速换算
@@ -49,7 +51,7 @@ npm run preview
 项目已包含：
 
 - `api/rates.js`：Vercel 同源汇率代理
-- `vercel.json`：SPA 路由回退
+- `vercel.json`：静态 SEO 页面、API 与 SPA 路由配置
 - `alerts-worker/`：邮件验证、提醒管理和每 5 分钟检查一次的 Cloudflare Worker
 
 推送到 GitHub 后由 Vercel 自动部署，生产域名为 `rate.bailuioai.com`。
