@@ -1,262 +1,427 @@
 <template>
-  <div class="max-w-[1440px] mx-auto">
-    <!-- 页面标题 -->
-    <div class="flex flex-col md:flex-row md:items-end md:justify-between mb-5 gap-3">
+  <div class="page-shell">
+    <header class="page-heading home-heading">
       <div>
-        <h1 class="text-xl font-extrabold text-[var(--color-text)] tracking-tight">实时汇率</h1>
-        <p class="text-sm text-[var(--color-text-soft)] mt-1">掌握全球主要货币的实时变化</p>
+        <div class="eyebrow"><span class="status-dot" /> 全球汇率服务</div>
+        <h1 class="page-title">实时汇率</h1>
+        <p class="page-description">重点关注美元、澳元、英镑与日元，快速查看人民币参考价。</p>
       </div>
-      <div class="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
-        <span v-if="lastTime">更新于 {{ lastTime }}</span>
-        <button @click="refreshRates" class="w-8 h-8 rounded-full border border-[var(--color-border)] bg-white flex items-center justify-center text-sm hover:bg-[var(--color-bg-soft)] hover:text-[var(--color-primary)] transition-colors" :class="{ 'animate-spin': refreshing }" :disabled="refreshing">🔄</button>
+      <div class="heading-actions">
+        <span class="status-pill">{{ hasData ? `更新于 ${updatedLabel}` : '正在获取数据' }}</span>
+        <button class="secondary-button" :disabled="refreshing" @click="refreshRates">
+          <Refresh :class="{ 'is-spinning': refreshing }" />
+          {{ refreshing ? '更新中' : '刷新数据' }}
+        </button>
       </div>
+    </header>
+
+    <div v-if="error" class="error-banner" role="alert">
+      <span>{{ error }}</span>
+      <button class="secondary-button" @click="refreshRates">重新连接</button>
     </div>
 
-    <!-- 统计卡片 -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-      <div v-for="stat in stats" :key="stat.label" class="stat-card">
+    <section class="stat-grid" aria-label="汇率概览">
+      <article v-for="stat in stats" :key="stat.label" class="stat-card">
         <div>
-          <div class="text-[22px] font-extrabold text-[var(--color-text)] leading-none">{{ stat.value }}</div>
-          <div class="text-[11px] text-[var(--color-text-soft)] mt-1 font-medium">{{ stat.label }}</div>
+          <div class="stat-value" :class="{ skeleton: loading && !hasData }">{{ hasData || !loading ? stat.value : '' }}</div>
+          <div class="stat-label">{{ stat.label }}</div>
         </div>
-        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0" :class="stat.bg">{{ stat.icon }}</div>
-      </div>
-    </div>
+        <div class="stat-icon" :class="stat.tone"><component :is="stat.icon" /></div>
+      </article>
+    </section>
 
-    <!-- 换算卡片 -->
-    <div class="bg-white rounded-[var(--radius-card)] p-5 md:p-6 border border-[var(--color-border)] shadow-[var(--shadow-card)] mb-5">
-      <div class="flex items-center gap-2 mb-4">
-        <span class="text-base">🧮</span><h3 class="text-base font-bold text-[var(--color-text)]">快速换算</h3>
-        <span class="text-[10px] font-semibold text-white bg-[var(--color-primary)] px-2 py-0.5 rounded-full">实时</span>
+    <section ref="converterRef" class="surface-card converter-card">
+      <div class="section-heading converter-heading">
+        <div>
+          <h2 class="section-title">快速换算</h2>
+          <p class="section-note">选择币种并输入金额，结果会自动更新</p>
+        </div>
+        <span class="live-badge"><span class="status-dot" /> 实时参考</span>
       </div>
 
-      <!-- 换算行 -->
-      <div class="flex flex-col sm:flex-row items-stretch gap-3 mb-4">
-        <!-- 左侧：持有 -->
-        <div class="flex-1">
-          <label class="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5 block">
-            持有 · <span class="text-[var(--color-primary)]">{{ convFrom === 'CNY' ? '人民币' : convFrom === 'USD' ? '美元' : convFrom === 'EUR' ? '欧元' : convFrom === 'GBP' ? '英镑' : convFrom === 'JPY' ? '日元' : convFrom }}</span>
+      <div class="converter-grid">
+        <div class="currency-panel source-panel">
+          <div class="panel-label">
+            <span>持有</span>
+            <strong>{{ currencyName(convFrom) }}</strong>
+          </div>
+          <select v-model="convFrom" class="currency-select" aria-label="持有货币">
+            <option v-for="currency in currencyOptions" :key="`from-${currency.code}`" :value="currency.code">
+              {{ currency.flag }} {{ currency.code }} · {{ currency.name }}
+            </option>
+          </select>
+          <div class="amount-row">
+            <span class="currency-symbol">{{ currencyMeta(convFrom).symbol || convFrom }}</span>
+            <input v-model.number="convAmount" type="number" min="0" inputmode="decimal" aria-label="持有金额" placeholder="输入金额" />
+            <span class="amount-badge source-badge">{{ currencyName(convFrom) }}</span>
+          </div>
+        </div>
+
+        <button class="swap-button" aria-label="交换币种" title="交换币种" @click="swapConv">
+          <Switch />
+        </button>
+
+        <div class="currency-panel result-panel">
+          <div class="panel-label">
+            <span>兑换结果</span>
+            <strong>{{ currencyName(convTo) }}</strong>
+          </div>
+          <select v-model="convTo" class="currency-select result-select" aria-label="目标货币">
+            <option v-for="currency in currencyOptions" :key="`to-${currency.code}`" :value="currency.code">
+              {{ currency.flag }} {{ currency.code }} · {{ currency.name }}
+            </option>
+          </select>
+          <div class="amount-row result-amount">
+            <span class="currency-symbol">{{ currencyMeta(convTo).symbol || convTo }}</span>
+            <output class="result-value">{{ convResult }}</output>
+            <span class="amount-badge result-badge">{{ currencyName(convTo) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="rate-summary">
+        <span v-if="convRateInfo">1 {{ convFrom }} = <strong>{{ convRateInfo }}</strong> {{ convTo }}</span>
+        <span v-else>等待实时汇率数据</span>
+        <span>公开数据仅作参考，实际成交价以银行为准</span>
+      </div>
+    </section>
+
+    <section class="content-section">
+      <div class="section-heading">
+        <div>
+          <h2 class="section-title">热门汇率</h2>
+          <p class="section-note">点击卡片即可设为持有货币</p>
+        </div>
+        <RouterLink to="/trends" class="text-link">查看走势 <ArrowRight /></RouterLink>
+      </div>
+
+      <div v-if="loading && !hasData" class="hot-grid" aria-busy="true">
+        <div v-for="index in 8" :key="index" class="surface-card hot-card-skeleton">
+          <div class="skeleton skeleton-title" />
+          <div class="skeleton skeleton-number" />
+          <div class="skeleton skeleton-chart" />
+        </div>
+      </div>
+      <div v-else class="hot-grid">
+        <button v-for="currency in hotCurrencies" :key="currency.code" class="hot-card surface-card"
+          :class="{ 'is-selected': convFrom === currency.code }" @click="selectSource(currency.code)">
+          <div class="hot-card-top">
+            <span class="currency-flag">{{ currency.flag }}</span>
+            <span>
+              <strong>{{ currency.code }}</strong>
+              <small>{{ currency.name }}</small>
+            </span>
+            <span class="card-action">设为持有</span>
+          </div>
+          <div class="hot-rate">
+            <small>{{ currency.unit }} {{ currency.code }}</small>
+            <strong>{{ formatRate(currency.rate) }}</strong>
+            <span>CNY</span>
+          </div>
+          <div class="hot-chart">
+            <Sparkline :data="sparkData[currency.code] || []" :color="currency.color" :show-label="true" />
+          </div>
+        </button>
+      </div>
+    </section>
+
+    <section class="content-section">
+      <div class="section-heading currencies-heading">
+        <div>
+          <h2 class="section-title">全部币种</h2>
+          <p class="section-note">{{ filteredCurrencies.length }} 种结果 · 支持收藏与快速换算</p>
+        </div>
+        <div class="currency-tools">
+          <label class="search-box">
+            <Search />
+            <input v-model.trim="searchQuery" type="search" placeholder="搜索代码或名称" aria-label="搜索币种" />
           </label>
-          <div class="flex items-stretch gap-2">
-            <select v-model="convFrom" class="curr-sel w-[140px] flex-shrink-0">
-              <option v-for="c in allCurrenciesFull" :key="'f-'+c.code" :value="c.code">{{ c.flag }} {{ c.code }} {{ c.name }}</option>
-            </select>
-            <div class="flex-1 flex items-center bg-pink-50 border border-pink-100 rounded-xl px-3 min-w-0">
-              <input v-model.number="convAmount" type="number" min="0" class="flex-1 min-w-0 bg-transparent outline-none text-lg font-bold text-[var(--color-text)] placeholder:text-[var(--color-text-muted)]" placeholder="0" />
-              <span class="text-sm font-bold text-white bg-[var(--color-primary)] px-2 py-0.5 rounded-full ml-2 flex-shrink-0">{{ convFrom === 'CNY' ? '人民币' : convFrom === 'USD' ? '美元' : convFrom === 'EUR' ? '欧元' : convFrom === 'GBP' ? '英镑' : convFrom === 'JPY' ? '日元' : convFrom }}</span>
+          <button class="filter-button" :class="{ 'is-active': favoriteOnly }" @click="favoriteOnly = !favoriteOnly">
+            <StarFilled v-if="favoriteOnly" /><Star v-else /> 收藏
+          </button>
+          <select v-model="sortBy" class="sort-select" aria-label="排序方式">
+            <option value="default">默认排序</option>
+            <option value="code">按代码排序</option>
+            <option value="rateDesc">汇率从高到低</option>
+            <option value="rateAsc">汇率从低到高</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="surface-card currency-table-card">
+        <div v-if="pagedCurrencies.length" class="desktop-table">
+          <div class="table-row table-header">
+            <span>币种</span><span>名称</span><span>单位</span><span class="align-right">人民币参考价</span><span class="align-right">快捷操作</span>
+          </div>
+          <div v-for="currency in pagedCurrencies" :key="currency.code" class="table-row">
+            <span class="currency-identity"><button class="favorite-icon" :aria-label="`${isFavorite(currency.code) ? '取消收藏' : '收藏'} ${currency.code}`" @click="toggleFavorite(currency.code)"><StarFilled v-if="isFavorite(currency.code)" /><Star v-else /></button><b>{{ currency.flag }} {{ currency.code }}</b></span>
+            <span class="muted-text">{{ currency.name }}</span>
+            <span class="muted-text">{{ currency.unit }} {{ currency.code }}</span>
+            <strong class="align-right mono-value">{{ formatRate(currency.rate) }} CNY</strong>
+            <span class="table-actions"><button @click="selectSource(currency.code)">持有</button><button class="result-action" @click="selectTarget(currency.code)">兑换</button></span>
+          </div>
+        </div>
+
+        <div v-if="pagedCurrencies.length" class="mobile-currency-list">
+          <article v-for="currency in pagedCurrencies" :key="`mobile-${currency.code}`" class="mobile-currency-card">
+            <div class="mobile-currency-head">
+              <div><span>{{ currency.flag }}</span><strong>{{ currency.code }}</strong><small>{{ currency.name }}</small></div>
+              <button class="favorite-icon" :aria-label="`${isFavorite(currency.code) ? '取消收藏' : '收藏'} ${currency.code}`" @click="toggleFavorite(currency.code)"><StarFilled v-if="isFavorite(currency.code)" /><Star v-else /></button>
             </div>
-          </div>
+            <div class="mobile-rate"><small>{{ currency.unit }} {{ currency.code }}</small><strong>{{ formatRate(currency.rate) }}</strong><span>CNY</span></div>
+            <div class="mobile-actions"><button @click="selectSource(currency.code)">设为持有</button><button @click="selectTarget(currency.code)">设为兑换</button></div>
+          </article>
         </div>
 
-        <!-- 交换按钮 -->
-        <button @click="swapConv" class="swap-btn-v self-end">⇄</button>
-
-        <!-- 右侧：结果 -->
-        <div class="flex-1">
-          <label class="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5 block">
-            兑换结果 · <span class="text-[var(--color-success)]">{{ convTo === 'CNY' ? '人民币' : convTo === 'USD' ? '美元' : convTo === 'EUR' ? '欧元' : convTo === 'GBP' ? '英镑' : convTo === 'JPY' ? '日元' : convTo }}</span>
-          </label>
-          <div class="flex items-stretch gap-2">
-            <select v-model="convTo" class="curr-sel w-[140px] flex-shrink-0">
-              <option v-for="c in allCurrenciesFull" :key="'t-'+c.code" :value="c.code">{{ c.flag }} {{ c.code }} {{ c.name }}</option>
-            </select>
-            <div class="flex-1 flex items-center bg-emerald-50 border border-emerald-100 rounded-xl px-3 min-w-0">
-              <span class="text-lg font-extrabold text-[var(--color-success)] truncate">{{ convResult }}</span>
-              <span class="text-sm font-bold text-white bg-[var(--color-success)] px-2 py-0.5 rounded-full ml-2 flex-shrink-0">{{ convTo === 'CNY' ? '人民币' : convTo }}</span>
-            </div>
-          </div>
+        <div v-if="!pagedCurrencies.length" class="empty-state">
+          <Search />
+          <h3>没有找到匹配币种</h3>
+          <p>换一个代码或中文名称试试。</p>
         </div>
-      </div>
 
-      <div v-if="convRateInfo" class="text-center text-xs text-[var(--color-text-soft)] bg-[var(--color-bg-soft)] py-2 rounded-xl">
-        1 <b class="text-[var(--color-text)]">{{ convFrom }}</b> = <b class="text-[var(--color-primary)]">{{ convRateInfo }}</b> {{ convTo }}
+        <nav v-if="totalPages > 1" class="pagination" aria-label="币种分页">
+          <button :disabled="currentPage === 1" aria-label="上一页" @click="currentPage--"><ArrowLeft /></button>
+          <span>第 <strong>{{ currentPage }}</strong> / {{ totalPages }} 页</span>
+          <button :disabled="currentPage === totalPages" aria-label="下一页" @click="currentPage++"><ArrowRight /></button>
+        </nav>
       </div>
-    </div>
+    </section>
 
-    <!-- 热门汇率 -->
-    <div class="flex items-center justify-between mb-3">
-      <div class="flex items-center gap-2">
-        <h3 class="text-base font-bold text-[var(--color-text)]">🔥 热门汇率</h3>
-        <span class="text-[11px] text-[var(--color-text-muted)]">{{ hotCurrencies.length }} 种</span>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
-      <div v-for="(c,i) in hotCurrencies" :key="c.code" class="rate-card cursor-pointer" :style="{ animationDelay: i*40+'ms' }" @click="convFrom=c.code" title="点击设为持有货币">
-        <div class="flex items-center gap-2.5 mb-3">
-          <span class="text-xl leading-none">{{ c.flag }}</span>
-          <div>
-            <div class="text-[13px] font-bold text-[var(--color-text)]">{{ c.code }}</div>
-            <div class="text-[10px] text-[var(--color-text-muted)]">{{ c.name }}</div>
-          </div>
-        </div>
-        <div class="text-[22px] font-extrabold text-[var(--color-text)] tracking-tight">
-          <span v-if="c.unit>1" class="text-xs text-[var(--color-text-muted)] font-medium">{{ c.unit }}</span>
-          {{ c.rate?.toFixed(4) || '--' }}
-        </div>
-        <div class="mt-2 h-8" v-if="sparkData[c.code]?.length>=2">
-          <Sparkline :data="sparkData[c.code]" color="#E85D8E" />
-        </div>
-      </div>
-    </div>
-
-    <!-- 全部币种 -->
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-3 gap-2">
-      <div class="flex items-center gap-2">
-        <h3 class="text-base font-bold text-[var(--color-text)]">🌍 全部币种</h3>
-        <span class="text-[11px] text-[var(--color-text-muted)]">{{ filteredAll.length }} / {{ allCurrencies.length }} 种</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <div class="relative">
-          <input v-model="searchQuery" type="text" placeholder="搜索币种..." class="w-40 md:w-48 h-8 rounded-lg border border-[var(--color-border)] bg-white px-3 text-xs text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-light)] transition-all" />
-        </div>
-      </div>
-    </div>
-
-    <div class="bg-white rounded-[var(--radius-card)] border border-[var(--color-border)] shadow-[var(--shadow-card)] overflow-hidden">
-      <!-- 表头 -->
-      <div class="flex items-center px-4 py-2.5 bg-[var(--color-bg-soft)] border-b border-[var(--color-border)] text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
-        <span class="w-12">货币</span><span class="w-14">代码</span><span class="flex-1">名称</span><span class="w-28 text-right">汇率 (CNY)</span>
-      </div>
-
-      <!-- 列表（默认20条） -->
-      <div v-for="c in pagedCurrencies" :key="c.code" class="flex items-center px-4 py-2.5 border-b border-[var(--color-bg-soft)] text-[13px] hover:bg-[var(--color-bg-soft)]/60 transition-colors last:border-b-0">
-        <span class="w-12 text-base">{{ c.flag }}</span>
-        <span class="w-14 font-semibold text-[var(--color-text)]">{{ c.code }}</span>
-        <span class="flex-1 text-[var(--color-text-soft)] truncate">{{ c.name }}</span>
-        <span class="w-28 text-right font-semibold text-[var(--color-text)] font-[var(--font-mono)] text-xs">
-          <template v-if="c.unit>1">{{ c.unit }}</template>
-          {{ c.rate?.toFixed(4) || '--' }}
-        </span>
-      </div>
-
-      <!-- 分页 -->
-      <div v-if="totalPages > 1" class="flex items-center justify-center gap-1 px-4 py-3 border-t border-[var(--color-border)]">
-        <button @click="currentPage=Math.max(1,currentPage-1)" :disabled="currentPage===1" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--color-border)] disabled:opacity-30 hover:bg-[var(--color-bg-soft)] transition-colors">‹</button>
-        <button v-for="p in visiblePages" :key="p" @click="currentPage=p" :class="['px-3 py-1.5 rounded-lg text-xs font-medium transition-colors', p===currentPage ? 'bg-[var(--color-primary)] text-white' : 'border border-[var(--color-border)] hover:bg-[var(--color-bg-soft)]']">{{ p }}</button>
-        <button @click="currentPage=Math.min(totalPages,currentPage+1)" :disabled="currentPage===totalPages" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--color-border)] disabled:opacity-30 hover:bg-[var(--color-bg-soft)] transition-colors">›</button>
-      </div>
-    </div>
-
-    <!-- 页脚 -->
-    <div class="mt-8 pb-4 text-center">
-      <p class="text-[11px] text-[var(--color-text-muted)]">数据仅供参考，请以实际银行汇率为准</p>
-      <p class="text-[11px] text-[var(--color-text-muted)] mt-1"><span class="font-medium">🦌 白鹿io</span> · 汇率工具</p>
-    </div>
+    <footer class="page-footer">🦌 白鹿io · 汇率转换 · 数据仅供参考</footer>
   </div>
 </template>
 
 <script setup>
-import { ref,reactive,onMounted,onUnmounted,computed } from 'vue'
-import { fetchLiveRates,buildCurrencyList,fetchHistory,getCNYHistory,HOT_CURRENCIES,CURRENCY_META } from '../api/exchangeRate.js'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import {
+  ArrowLeft, ArrowRight, Clock, Coin, Refresh, Search, Star, StarFilled,
+  Switch, Timer,
+} from '@element-plus/icons-vue'
 import Sparkline from '../components/Sparkline.vue'
+import {
+  CNY_ENTRY, CURRENCY_META, HOT_CURRENCIES, buildCurrencyList,
+  buildCurrencyOptions, fetchHistory, formatRate, getCNYHistory,
+  getCrossRate, getCurrencyMeta,
+} from '../api/exchangeRate.js'
+import { useExchangeRates } from '../composables/useExchangeRates.js'
 
-const emit = defineEmits(['updateTime','refreshStart','refreshEnd'])
+const { rates, loading, refreshing, error, hasData, updatedLabel, refresh } = useExchangeRates()
+const converterRef = ref(null)
+const sparkData = ref({})
+const convAmount = ref(100)
+const convFrom = ref('USD')
+const convTo = ref('CNY')
+const searchQuery = ref('')
+const sortBy = ref('default')
+const favoriteOnly = ref(false)
+const currentPage = ref(1)
+const pageSize = 15
+const favorites = ref(readFavorites())
+let timer
 
-const loading=ref(true), refreshing=ref(false), lastTime=ref('')
-const rawRates=ref({}), sparkData=reactive({})
-
-// 换算器
-const convAmount=ref(100), convFrom=ref('USD'), convTo=ref('CNY')
-const convCnyRates=ref({})
-const convResult=computed(()=>{
-  if(!convAmount.value||convAmount.value<=0)return'0.00'
-  const r=crossRate();return r?(convAmount.value*r).toFixed(2):'--'
+const fallbackOptions = [CNY_ENTRY, ...HOT_CURRENCIES.map((code) => ({
+  code, ...(CURRENCY_META[code] || { name: code, flag: '🌐', symbol: '' }), rate: null, unit: CURRENCY_META[code]?.unit || 1,
+}))]
+const currencyOptions = computed(() => hasData.value ? buildCurrencyOptions(rates.value) : fallbackOptions)
+const hotCurrencies = computed(() => buildCurrencyList(rates.value).filter((item) => HOT_CURRENCIES.slice(0, 8).includes(item.code)).slice(0, 8))
+const allCurrencies = computed(() => buildCurrencyOptions(rates.value))
+const convRate = computed(() => getCrossRate(rates.value, convFrom.value, convTo.value))
+const convResult = computed(() => {
+  if (!Number.isFinite(Number(convAmount.value)) || convAmount.value < 0) return '0.00'
+  if (!Number.isFinite(convRate.value)) return '--'
+  return new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(convAmount.value * convRate.value)
 })
-const convRateInfo=computed(()=>{const r=crossRate();return r?.toFixed(4)||null})
-function crossRate(){const r=convCnyRates.value;if(!r)return null;const f=convFrom.value,t=convTo.value;if(f===t)return 1;const f2c=f==='CNY'?1:(r[f]?1/r[f]:null);const c2t=t==='CNY'?1:(r[t]||null);return f2c!=null&&c2t!=null?f2c*c2t:null}
-function swapConv(){[convFrom.value,convTo.value]=[convTo.value,convFrom.value]}
-
-const hotChips = computed(() => HOT_CURRENCIES.map(code => ({ code, flag: CURRENCY_META[code]?.flag || '💱' })))
-
-// 全部币种，用于换算器的下拉选择（CNY 置顶）
-const allCurrenciesFull = computed(() => {
-  const list = buildCurrencyList(rawRates.value)
-  // CNY 是 API 基准币，不会出现在 rates 中，手动置顶
-  const cnyEntry = { code: 'CNY', name: '人民币', flag: '🇨🇳', symbol: '¥', color: '#ef4444', rate: 1, unit: 1 }
-  if (list.length > 0) {
-    const rest = list.filter(c => c.code !== 'CNY')
-    return [cnyEntry, ...rest]
-  }
-  // fallback：API 返回前先展示热门币种（CNY 置顶）
-  const fallback = HOT_CURRENCIES.map(code => ({
-    code, ...CURRENCY_META[code] || { name: code, flag: '💱', color: '#c4a8b4' },
-    rate: null, unit: CURRENCY_META[code]?.unit || 1
-  }))
-  return [cnyEntry, ...fallback.filter(c => c.code !== 'CNY')]
-})
-
-// 汇率数据
-const hotCurrencies=computed(()=>buildCurrencyList(rawRates.value).filter(c=>HOT_CURRENCIES.includes(c.code)))
-const allCurrencies=computed(()=>buildCurrencyList(rawRates.value).filter(c=>c.code!=='CNY'&&!HOT_CURRENCIES.includes(c.code)))
-
-const searchQuery=ref('')
-const currentPage=ref(1)
-const pageSize=20
-
-const filteredAll=computed(()=>{
-  const q=searchQuery.value.toLowerCase()
-  if(!q)return allCurrencies.value
-  return allCurrencies.value.filter(c=>c.code.toLowerCase().includes(q)||c.name.toLowerCase().includes(q))
-})
-
-const totalPages=computed(()=>Math.ceil(filteredAll.value.length/pageSize)||0)
-const pagedCurrencies=computed(()=>{
-  const start=(currentPage.value-1)*pageSize
-  return filteredAll.value.slice(start,start+pageSize)
-})
-
-const visiblePages=computed(()=>{
-  const pages=[]
-  const total=totalPages.value
-  const current=currentPage.value
-  let start=Math.max(1,current-2)
-  let end=Math.min(total,current+2)
-  if(end-start<4){if(start===1)end=Math.min(total,5);else if(end===total)start=Math.max(1,total-4)}
-  for(let i=start;i<=end;i++)pages.push(i)
-  return pages
-})
-
-const stats=computed(()=>[
-  { label:'支持币种', value: buildCurrencyList(rawRates.value).filter(c=>c.code!=='CNY').length, icon:'🌐', bg:'bg-blue-50/40' },
-  { label:'热门汇率', value: hotCurrencies.value.length, icon:'🔥', bg:'bg-amber-50/40' },
-  { label:'刷新频率', value:'30s', icon:'⚡', bg:'bg-emerald-50/40' },
-  { label:'最后更新', value: lastTime.value||'--', icon:'🕐', bg:'bg-purple-50/40' },
+const convRateInfo = computed(() => Number.isFinite(convRate.value) ? formatRate(convRate.value, 6) : '')
+const stats = computed(() => [
+  { label: '支持币种', value: hasData.value ? allCurrencies.value.length : '--', icon: Coin, tone: 'tone-pink' },
+  { label: '重点货币', value: '4', icon: StarFilled, tone: 'tone-gold' },
+  { label: '检查频率', value: '30 秒', icon: Timer, tone: 'tone-green' },
+  { label: '最后更新', value: updatedLabel.value, icon: Clock, tone: 'tone-purple' },
 ])
+const filteredCurrencies = computed(() => {
+  const query = searchQuery.value.toLowerCase()
+  let list = allCurrencies.value.filter((item) => !favoriteOnly.value || isFavorite(item.code))
+  if (query) list = list.filter((item) => item.code.toLowerCase().includes(query) || item.name.toLowerCase().includes(query))
+  if (sortBy.value === 'code') list = [...list].sort((a, b) => a.code.localeCompare(b.code))
+  if (sortBy.value === 'rateDesc') list = [...list].sort((a, b) => (b.rate ?? -Infinity) - (a.rate ?? -Infinity))
+  if (sortBy.value === 'rateAsc') list = [...list].sort((a, b) => (a.rate ?? Infinity) - (b.rate ?? Infinity))
+  return list
+})
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredCurrencies.value.length / pageSize)))
+const pagedCurrencies = computed(() => filteredCurrencies.value.slice((currentPage.value - 1) * pageSize, currentPage.value * pageSize))
 
-async function loadSpark(){try{const d=await fetchHistory(7);HOT_CURRENCIES.forEach(c=>{const v=getCNYHistory(d,c);if(v.length>=2)sparkData[c]=v})}catch{}}
-
-async function refreshRates(){
-  refreshing.value=true;emit('refreshStart')
-  try{
-    const d=await fetchLiveRates()
-    if (d?.rates && Object.keys(d.rates).length > 0) {
-      rawRates.value = { ...d.rates }
-      convCnyRates.value = d.rates
-      lastTime.value = new Date().toLocaleTimeString('zh-CN',{hour12:false})
-      emit('updateTime',lastTime.value)
-    }
-    loading.value=false
-  }catch(e){console.error('刷新汇率失败',e)}
-  finally{refreshing.value=false;emit('refreshEnd')}
+function currencyMeta(code) { return getCurrencyMeta(code) }
+function currencyName(code) { return currencyMeta(code).name }
+function readFavorites() {
+  try { return JSON.parse(localStorage.getItem('bailuio_currency_favorites') || '["USD","AUD","GBP","JPY"]') }
+  catch { return ['USD', 'AUD', 'GBP', 'JPY'] }
+}
+function isFavorite(code) { return favorites.value.includes(code) }
+function toggleFavorite(code) {
+  favorites.value = isFavorite(code) ? favorites.value.filter((item) => item !== code) : [...favorites.value, code]
+  localStorage.setItem('bailuio_currency_favorites', JSON.stringify(favorites.value))
+}
+function selectSource(code) { convFrom.value = code; converterRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
+function selectTarget(code) { convTo.value = code; converterRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
+function swapConv() { [convFrom.value, convTo.value] = [convTo.value, convFrom.value] }
+async function refreshRates() { try { await refresh({ force: true }) } catch {} }
+async function loadSparklines() {
+  try {
+    const history = await fetchHistory(14)
+    const next = {}
+    HOT_CURRENCIES.slice(0, 8).forEach((code) => { next[code] = getCNYHistory(history, code) })
+    sparkData.value = next
+  } catch {}
 }
 
-let timer=null
-onMounted(async()=>{await Promise.all([refreshRates(),loadSpark()]);timer=setInterval(refreshRates,30000)})
-onUnmounted(()=>clearInterval(timer))
+watch([searchQuery, sortBy, favoriteOnly], () => { currentPage.value = 1 })
+watch(totalPages, (pages) => { if (currentPage.value > pages) currentPage.value = pages })
+onMounted(() => {
+  refresh().catch(() => {})
+  loadSparklines()
+  timer = setInterval(() => refresh().catch(() => {}), 30_000)
+})
+onUnmounted(() => clearInterval(timer))
 </script>
 
-<style>
-@reference "tailwindcss";
-.stat-card { @apply bg-white rounded-[var(--radius-card)] p-4 border border-[var(--color-border)] flex items-center justify-between; box-shadow: var(--shadow-card); }
-.input-box { @apply flex items-center h-11 rounded-[var(--radius-input)] border border-[var(--color-border)] bg-white px-3 transition-all; }
-.input-box:focus-within { @apply border-[var(--color-primary)]; box-shadow: 0 0 0 3px var(--color-primary-light); }
-.swap-btn { @apply w-9 h-9 rounded-full border-2 border-[var(--color-border)] bg-white flex items-center justify-center text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white hover:border-[var(--color-primary)] transition-all duration-200 flex-shrink-0 self-center; margin-bottom:2px; }
-.chip { @apply inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-[var(--color-border)] bg-white text-[11px] font-medium text-[var(--color-text-soft)] transition-all duration-150 cursor-pointer hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]; }
-.chip-on { @apply bg-[var(--color-primary)] text-white border-[var(--color-primary)] font-semibold; }
-.curr-sel { @apply h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-soft)] px-2 text-xs font-semibold text-[var(--color-text)] cursor-pointer outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary-light)] transition-all; appearance:none; background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23A08C95' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\"); background-repeat:no-repeat; background-position:right 8px center; padding-right:24px; }
-.swap-btn-v { @apply w-9 h-9 rounded-full border-2 border-[var(--color-border)] bg-white flex items-center justify-center text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white hover:border-[var(--color-primary)] transition-all duration-200 flex-shrink-0; }
-.rate-card { @apply bg-white rounded-[var(--radius-card)] p-4 border border-[var(--color-border)]; box-shadow: var(--shadow-card); transition: all 0.2s; animation: fadeUp 0.4s cubic-bezier(.25,.1,.25,1) both; }
-.rate-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
-@keyframes fadeUp { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
+<style scoped>
+.home-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
+.eyebrow { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; color: var(--color-primary); font-size: 11px; font-weight: 800; letter-spacing: .06em; }
+.heading-actions { display: flex; align-items: center; gap: 9px; }
+.stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 18px; }
+.stat-card { min-width: 0; min-height: 94px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 17px; border: 1px solid var(--color-border); border-radius: 16px; background: white; box-shadow: var(--shadow-card); }
+.stat-value { min-width: 52px; min-height: 28px; color: var(--color-text); font-size: 23px; font-weight: 820; line-height: 1.2; letter-spacing: -.03em; }
+.stat-label { margin-top: 5px; color: var(--color-text-muted); font-size: 11px; font-weight: 650; }
+.stat-icon { width: 42px; height: 42px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 13px; }
+.stat-icon :deep(svg) { width: 19px; height: 19px; }
+.tone-pink { background: var(--color-primary-light); color: var(--color-primary); }
+.tone-gold { background: #FFF5DF; color: #D98D20; }
+.tone-green { background: var(--color-success-light); color: var(--color-success); }
+.tone-purple { background: #F3EEFF; color: #8669D3; }
+.converter-card { padding: clamp(18px, 2.6vw, 28px); margin-bottom: 26px; }
+.converter-heading { margin-bottom: 18px; }
+.converter-heading .section-note { margin: 5px 0 0; }
+.live-badge { display: inline-flex; align-items: center; gap: 7px; min-height: 29px; padding: 0 10px; border-radius: 999px; background: var(--color-success-light); color: var(--color-success); font-size: 11px; font-weight: 750; }
+.converter-grid { display: grid; grid-template-columns: minmax(0,1fr) 42px minmax(0,1fr); align-items: end; gap: 13px; }
+.currency-panel { min-width: 0; padding: 15px; border: 1px solid; border-radius: 15px; }
+.source-panel { border-color: #F3D5E0; background: #FFF7F9; }
+.result-panel { border-color: #CDEBDD; background: #F3FBF7; }
+.panel-label { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; color: var(--color-text-muted); font-size: 11px; font-weight: 700; }
+.source-panel .panel-label strong { color: var(--color-primary); }
+.result-panel .panel-label strong { color: var(--color-success); }
+.currency-select { width: 100%; min-width: 0; max-width: 100%; height: 42px; border: 1px solid #EFCBD8; border-radius: 11px; background: white; padding: 0 11px; color: var(--color-text); font-size: 13px; font-weight: 700; outline: none; }
+.currency-select:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(232,93,142,.10); }
+.result-select { border-color: #BFE4D2; }
+.result-select:focus { border-color: var(--color-success); box-shadow: 0 0 0 3px rgba(32,169,107,.10); }
+.amount-row { height: 52px; display: flex; align-items: center; gap: 8px; margin-top: 9px; padding: 0 11px; border-radius: 11px; background: white; }
+.currency-symbol { color: var(--color-text-muted); font-size: 13px; font-weight: 750; }
+.amount-row input { width: 100%; min-width: 0; border: 0; background: transparent; outline: none; color: var(--color-text); font-size: 21px; font-weight: 820; }
+.result-value { flex: 1; min-width: 0; overflow: hidden; color: var(--color-success); font-size: 21px; font-weight: 840; text-overflow: ellipsis; white-space: nowrap; }
+.amount-badge { flex: 0 0 auto; padding: 5px 9px; border-radius: 999px; color: white; font-size: 10px; font-weight: 800; }
+.source-badge { background: var(--color-primary); }
+.result-badge { background: var(--color-success); }
+.swap-button { width: 42px; height: 42px; display: grid; place-items: center; margin-bottom: 30px; border: 1px solid var(--color-border); border-radius: 50%; background: white; color: var(--color-primary); box-shadow: var(--shadow-card); transition: .18s; }
+.swap-button:hover { border-color: var(--color-primary); background: var(--color-primary); color: white; transform: rotate(180deg); }
+.swap-button svg { width: 17px; }
+.rate-summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 14px; padding: 10px 13px; border-radius: 11px; background: #FBF7F9; color: var(--color-text-muted); font-size: 11px; }
+.rate-summary strong { color: var(--color-primary); }
+.content-section { margin-top: 25px; }
+.text-link { display: inline-flex; align-items: center; gap: 4px; color: var(--color-primary); font-size: 12px; font-weight: 750; text-decoration: none; }
+.text-link svg { width: 14px; }
+.hot-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
+.hot-card { min-width: 0; padding: 16px; text-align: left; transition: transform .18s, box-shadow .18s, border-color .18s; }
+.hot-card:hover { transform: translateY(-2px); border-color: #E7C7D3; box-shadow: var(--shadow-hover); }
+.hot-card.is-selected { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(232,93,142,.08), var(--shadow-card); }
+.hot-card-top { display: flex; align-items: center; gap: 9px; }
+.currency-flag { font-size: 22px; line-height: 1; }
+.hot-card-top span:nth-child(2) { display: flex; flex-direction: column; min-width: 0; }
+.hot-card-top strong { color: var(--color-text); font-size: 13px; }
+.hot-card-top small { color: var(--color-text-muted); font-size: 10px; }
+.card-action { margin-left: auto; opacity: 0; color: var(--color-primary); font-size: 9px; font-weight: 750; transition: opacity .18s; }
+.hot-card:hover .card-action, .hot-card:focus-visible .card-action { opacity: 1; }
+.hot-rate { display: flex; align-items: baseline; gap: 6px; margin-top: 15px; }
+.hot-rate small, .hot-rate span { color: var(--color-text-muted); font-size: 9px; }
+.hot-rate strong { color: var(--color-text); font-size: 22px; font-weight: 840; letter-spacing: -.035em; }
+.hot-chart { height: 49px; margin-top: 10px; }
+.hot-card-skeleton { min-height: 158px; padding: 16px; }
+.skeleton-title { width: 54%; height: 20px; }
+.skeleton-number { width: 74%; height: 28px; margin-top: 20px; }
+.skeleton-chart { width: 100%; height: 32px; margin-top: 15px; }
+.currencies-heading { align-items: flex-end; }
+.currency-tools { display: flex; align-items: center; gap: 8px; }
+.search-box { width: min(220px, 28vw); height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 11px; border: 1px solid var(--color-border); border-radius: 11px; background: white; transition: border-color .18s, box-shadow .18s; }
+.search-box:focus-within { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(232,93,142,.10); }
+.search-box svg { width: 15px; flex: 0 0 auto; color: var(--color-text-muted); }
+.search-box input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--color-text); font-size: 12px; }
+.filter-button, .sort-select { height: 40px; border: 1px solid var(--color-border); border-radius: 11px; background: white; color: var(--color-text-soft); font-size: 11px; font-weight: 700; }
+.filter-button { display: inline-flex; align-items: center; gap: 6px; padding: 0 11px; }
+.filter-button svg { width: 14px; }
+.filter-button.is-active { border-color: #EFC8D6; background: var(--color-primary-light); color: var(--color-primary); }
+.sort-select { padding: 0 9px; outline: 0; }
+.currency-table-card { overflow: hidden; }
+.table-row { display: grid; grid-template-columns: 1.1fr 1fr .9fr 1.3fr 1.1fr; align-items: center; min-height: 52px; padding: 0 16px; border-bottom: 1px solid var(--color-border-subtle); font-size: 12px; }
+.table-row:last-child { border-bottom: 0; }
+.table-row:not(.table-header):hover { background: #FFFAFC; }
+.table-header { min-height: 43px; background: #FBF7F9; color: var(--color-text-muted); font-size: 10px; font-weight: 800; letter-spacing: .04em; }
+.align-right { text-align: right; }
+.currency-identity { display: flex; align-items: center; gap: 7px; }
+.favorite-icon { width: 26px; height: 26px; display: grid; place-items: center; border: 0; background: transparent; color: #C7B4BC; }
+.favorite-icon:hover, .favorite-icon:has(.el-icon) { color: var(--color-primary); }
+.favorite-icon svg { width: 14px; }
+.muted-text { color: var(--color-text-soft); }
+.mono-value { color: var(--color-text); font-family: var(--font-mono); font-size: 11px; }
+.table-actions { display: flex; justify-content: flex-end; gap: 5px; }
+.table-actions button { padding: 5px 8px; border: 1px solid #F0D4DF; border-radius: 8px; background: #FFF7F9; color: var(--color-primary); font-size: 10px; font-weight: 750; }
+.table-actions .result-action { border-color: #CBE9DA; background: #F1FAF6; color: var(--color-success); }
+.mobile-currency-list { display: none; }
+.empty-state { min-height: 230px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--color-text-muted); text-align: center; }
+.empty-state svg { width: 28px; }
+.empty-state h3 { margin: 12px 0 4px; color: var(--color-text); font-size: 14px; }
+.empty-state p { margin: 0; font-size: 11px; }
+.pagination { min-height: 55px; display: flex; align-items: center; justify-content: center; gap: 14px; border-top: 1px solid var(--color-border); color: var(--color-text-soft); font-size: 11px; }
+.pagination button { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--color-border); border-radius: 9px; background: white; color: var(--color-text-soft); }
+.pagination button:disabled { opacity: .35; }
+.pagination svg { width: 13px; }
+.page-footer { padding: 34px 0 0; color: var(--color-text-muted); font-size: 10px; text-align: center; }
+
+@media (max-width: 1024px) {
+  .hot-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .stat-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .currencies-heading { align-items: flex-start; flex-direction: column; }
+  .currency-tools { width: 100%; }
+  .search-box { flex: 1; width: auto; }
+}
+@media (max-width: 720px) {
+  .home-heading { align-items: flex-start; flex-direction: column; }
+  .heading-actions { width: 100%; justify-content: space-between; }
+  .converter-grid { grid-template-columns: 1fr; }
+  .swap-button { margin: -2px auto; transform: rotate(90deg); }
+  .swap-button:hover { transform: rotate(270deg); }
+  .rate-summary { align-items: flex-start; flex-direction: column; }
+  .desktop-table { display: none; }
+  .mobile-currency-list { display: grid; gap: 10px; padding: 10px; }
+  .mobile-currency-card { padding: 13px; border: 1px solid var(--color-border); border-radius: 13px; background: white; }
+  .mobile-currency-head { display: flex; align-items: center; justify-content: space-between; }
+  .mobile-currency-head > div { display: flex; align-items: center; gap: 7px; }
+  .mobile-currency-head strong { font-size: 13px; }
+  .mobile-currency-head small { color: var(--color-text-muted); font-size: 10px; }
+  .mobile-rate { display: flex; align-items: baseline; gap: 6px; margin-top: 13px; }
+  .mobile-rate small, .mobile-rate span { color: var(--color-text-muted); font-size: 9px; }
+  .mobile-rate strong { font-size: 20px; }
+  .mobile-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 12px; }
+  .mobile-actions button { height: 34px; border: 1px solid #F0D4DF; border-radius: 9px; background: #FFF7F9; color: var(--color-primary); font-size: 10px; font-weight: 750; }
+  .mobile-actions button:last-child { border-color: #CBE9DA; background: #F1FAF6; color: var(--color-success); }
+}
+@media (max-width: 520px) {
+  .stat-grid { gap: 9px; }
+  .stat-card { min-height: 84px; padding: 13px; }
+  .stat-icon { width: 36px; height: 36px; }
+  .stat-value { font-size: 19px; }
+  .hot-grid { grid-template-columns: 1fr; }
+  .currency-tools { display: grid; grid-template-columns: 1fr 1fr; }
+  .search-box { grid-column: 1 / -1; width: 100%; }
+  .sort-select { min-width: 0; width: 100%; }
+  .filter-button { justify-content: center; }
+  .amount-badge { display: none; }
+}
 </style>

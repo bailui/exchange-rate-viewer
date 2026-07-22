@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bailu-rate-alerts",
+  "main": "src/index.js",
+  "compatibility_date": "2026-07-22",
+  "account_id": "6b731d2f88a0e08b8454d674e81bb221",
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  },
+  "vars": {
+    "SITE_URL": "https://rate.bailuioai.com",
+    "FROM_EMAIL": "白鹿io <alerts@bailuioai.com>",
+    "ALLOWED_ORIGINS": "https://rate.bailuioai.com,https://exchange-rate-viewer.vercel.app,http://localhost:3000,http://127.0.0.1:3000"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "bailu-rate-alerts-db",
+      "database_id": "d7507188-cb29-4015-8b58-c23da39c9d20"
+    }
+  ]
+}

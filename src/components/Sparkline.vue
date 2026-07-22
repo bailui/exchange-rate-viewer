@@ -1,120 +1,62 @@
 <template>
-  <div class="sparkline" v-if="data.length >= 2">
-    <svg :viewBox="`0 0 ${data.length-1} ${range}`" preserveAspectRatio="none">
+  <div v-if="values.length >= 2" class="sparkline" :aria-label="ariaLabel" role="img">
+    <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
       <defs>
         <linearGradient :id="gradientId" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" :stop-color="color" stop-opacity="0.25" />
-          <stop offset="100%" :stop-color="color" stop-opacity="0.02" />
+          <stop offset="0%" :stop-color="color" stop-opacity="0.24" />
+          <stop offset="100%" :stop-color="color" stop-opacity="0" />
         </linearGradient>
       </defs>
-      <path
-        :d="areaPath"
-        :fill="`url(#${gradientId})`"
-      />
-      <path
-        :d="linePath"
-        fill="none"
-        :stroke="color"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        vector-effect="non-scaling-stroke"
-      />
+      <path :d="areaPath" :fill="`url(#${gradientId})`" />
+      <path :d="linePath" fill="none" :stroke="color" stroke-width="1.8"
+        stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
     </svg>
-    <div class="sparkline-label" :class="trendClass">
-      <span class="trend-arrow">{{ trendArrow }}</span>
-      <span class="trend-text">{{ trendText }}</span>
-    </div>
+    <span v-if="showLabel" class="sparkline-change" :class="trendClass">
+      {{ trendArrow }} {{ trendText }}
+    </span>
   </div>
-  <div v-else class="sparkline-placeholder">
-    收集数据中...
-  </div>
+  <div v-else class="sparkline-empty">暂无趋势</div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
 
 const props = defineProps({
   data: { type: Array, default: () => [] },
-  color: { type: String, default: '#ff5c8a' }
+  color: { type: String, default: '#E85D8E' },
+  showLabel: { type: Boolean, default: false },
 })
 
-const gradientId = computed(() => `grad-${Math.random().toString(36).slice(2)}`)
-
-const max = computed(() => Math.max(...props.data, 1))
-const min = computed(() => Math.min(...props.data, max.value))
-const range = computed(() => {
-  const r = max.value - min.value
-  return r < 0.001 ? 1 : r + r * 0.3
-})
-
-const points = computed(() =>
-  props.data.map((v, i) => ({
-    x: i,
-    y: range.value - (v - min.value)
-  }))
-)
-
-const linePath = computed(() => {
-  if (points.value.length < 2) return ''
-  const pts = points.value
-  let d = `M ${pts[0].x} ${pts[0].y}`
-  for (let i = 1; i < pts.length; i++) {
-    const cp1x = pts[i-1].x + 0.4
-    const cp1y = pts[i-1].y
-    const cp2x = pts[i].x - 0.4
-    const cp2y = pts[i].y
-    d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${pts[i].x} ${pts[i].y}`
-  }
-  return d
-})
-
-const areaPath = computed(() => {
-  if (points.value.length < 2) return ''
-  return `${linePath.value} L ${points.value[points.value.length-1].x} ${range.value} L 0 ${range.value} Z`
-})
-
-const firstVal = computed(() => props.data[0])
-const lastVal = computed(() => props.data[props.data.length-1])
-const diff = computed(() => lastVal.value - firstVal.value)
-const diffPct = computed(() => firstVal.value ? (diff.value / firstVal.value * 100).toFixed(2) : 0)
-
-const trendClass = computed(() => diff.value > 0 ? 'up' : diff.value < 0 ? 'down' : 'flat')
-const trendArrow = computed(() => diff.value > 0 ? '▲' : diff.value < 0 ? '▼' : '─')
-const trendText = computed(() => {
-  const p = diffPct.value
-  return `${p >= 0 ? '+' : ''}${p}%`
-})
+const gradientId = `spark-${useId().replace(/:/g, '')}`
+const values = computed(() => props.data
+  .map((item) => Number(typeof item === 'object' ? item.value : item))
+  .filter(Number.isFinite))
+const max = computed(() => Math.max(...values.value))
+const min = computed(() => Math.min(...values.value))
+const spread = computed(() => Math.max(max.value - min.value, Math.abs(max.value) * 0.002, 0.0001))
+const points = computed(() => values.value.map((value, index) => ({
+  x: values.value.length === 1 ? 50 : index * 100 / (values.value.length - 1),
+  y: 36 - ((value - min.value) / spread.value) * 30,
+})))
+const linePath = computed(() => points.value.map((point, index) =>
+  `${index ? 'L' : 'M'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`,
+).join(' '))
+const areaPath = computed(() => `${linePath.value} L 100 40 L 0 40 Z`)
+const difference = computed(() => values.value.at(-1) - values.value[0])
+const percentage = computed(() => values.value[0]
+  ? difference.value / values.value[0] * 100
+  : 0)
+const trendClass = computed(() => difference.value > 0 ? 'is-up' : difference.value < 0 ? 'is-down' : '')
+const trendArrow = computed(() => difference.value > 0 ? '↑' : difference.value < 0 ? '↓' : '–')
+const trendText = computed(() => `${Math.abs(percentage.value).toFixed(2)}%`)
+const ariaLabel = computed(() => `汇率趋势，区间变化 ${percentage.value.toFixed(2)}%`)
 </script>
 
-<style lang="scss" scoped>
-.sparkline {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  svg {
-    width: 80px;
-    height: 28px;
-    flex-shrink: 0;
-  }
-
-  &-label {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    font-size: 11px;
-    font-weight: 600;
-
-    &.up { color: #e84a78 }
-    &.down { color: #30b469 }
-    &.flat { color: var(--text-tertiary) }
-  }
-}
-
-.sparkline-placeholder {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  font-style: italic;
-}
+<style scoped>
+.sparkline { position: relative; width: 100%; height: 100%; min-height: 28px; }
+.sparkline svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.sparkline-change { position: absolute; right: 0; top: 0; font-size: 11px; font-weight: 700; color: var(--color-text-muted); }
+.sparkline-change.is-up { color: var(--color-danger); }
+.sparkline-change.is-down { color: var(--color-success); }
+.sparkline-empty { display: grid; place-items: center; height: 100%; min-height: 28px; color: var(--color-text-muted); font-size: 11px; }
 </style>
