@@ -25,7 +25,7 @@ async function routeRequest(request, env) {
   const url = new URL(request.url)
 
   if (url.pathname === '/health') {
-    return json({ ok: true, service: 'bailu-rate-alerts', emailConfigured: Boolean(env.RESEND_API_KEY) }, 200, request, env)
+    return json({ ok: true, service: 'bailu-rate-alerts', emailConfigured: isEmailReady(env) }, 200, request, env)
   }
 
   if (url.pathname === '/verify' && request.method === 'GET') return verifyEmail(url, env)
@@ -36,7 +36,10 @@ async function routeRequest(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(request, env) })
   }
 
-  if (url.pathname === '/api/alerts' && request.method === 'POST') return createAlert(request, env)
+  if (url.pathname === '/api/alerts' && request.method === 'POST') {
+    if (!isEmailReady(env)) return json({ error: '邮件服务正在完成域名验证，请稍后再试' }, 503, request, env)
+    return createAlert(request, env)
+  }
 
   const match = url.pathname.match(/^\/api\/alerts\/([a-f0-9-]{36})$/)
   if (match && request.method === 'GET') return getAlert(request, env, match[1])
@@ -159,7 +162,7 @@ async function unsubscribe(url, env) {
 
 async function checkAlerts(env) {
   await env.DB.prepare("DELETE FROM alerts WHERE status = 'pending' AND unixepoch(created_at) <= unixepoch('now', '-7 days')").run()
-  if (!env.RESEND_API_KEY || !env.HMAC_SECRET) return
+  if (!isEmailReady(env) || !env.HMAC_SECRET) return
   const rates = await fetchRates()
 
   const { results } = await env.DB.prepare(`SELECT id, email, from_currency, to_currency, direction,
@@ -191,6 +194,10 @@ async function checkAlerts(env) {
         .bind(met ? 1 : 0, current, checkedAt, alert.id).run()
     }
   }
+}
+
+function isEmailReady(env) {
+  return Boolean(env.RESEND_API_KEY && env.EMAIL_SERVICE_READY === 'true')
 }
 
 async function fetchRates() {

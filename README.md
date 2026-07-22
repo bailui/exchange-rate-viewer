@@ -63,4 +63,4 @@ npx wrangler secret put RESEND_API_KEY --config alerts-worker/wrangler.jsonc
 npx wrangler deploy --config alerts-worker/wrangler.jsonc
 ```
 
-`HMAC_SECRET`、`RESEND_API_KEY` 和本地 `.dev.vars` 不得提交到 Git。发信服务未配置时，前端会显示“邮件通道待开通”并禁用创建按钮。
+`HMAC_SECRET`、`RESEND_API_KEY` 和本地 `.dev.vars` 不得提交到 Git。域名验证完成后还需将 Worker 的 `EMAIL_SERVICE_READY` 切换为 `true`；此前前端会显示“邮件通道待开通”并禁用创建按钮。
